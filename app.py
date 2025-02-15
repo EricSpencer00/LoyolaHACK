@@ -6,7 +6,7 @@ import datetime
 import random
 import json
 import firebase_admin
-from firebase_admin import auth as firebase_auth
+from firebase_admin import auth as firebase_auth, credentials
 from flask_bootstrap import Bootstrap
 import dotenv
 from phone import send_sms_via_email
@@ -21,8 +21,29 @@ app.config.from_object(Config)
 db = SQLAlchemy(app)
 mail = Mail(app)
 
-# Initialize Firebase Admin if not already initialized
-# firebase_admin.initialize_app()
+# Example User model - ensure this is defined/imported correctly
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    favorite_lines = db.Column(db.Text, default='[]')
+    home_lat = db.Column(db.Float, nullable=True)
+    home_lng = db.Column(db.Float, nullable=True)
+    notification_settings = db.Column(db.Text, nullable=True)
+    phone_number = db.Column(db.String(20), nullable=True)
+    carrier = db.Column(db.String(50), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f"<User {self.email}>"
+
+# Initialize Firebase only if it hasn't been initialized yet
+if not firebase_admin._apps:
+    service_account_json = os.getenv("FIREBASE_CREDENTIALS_PATH")
+    if not service_account_json:
+        raise Exception("FIREBASE_CREDENTIALS_PATH not found in environment variables")
+    cred_data = json.loads(service_account_json)
+    cred = credentials.Certificate(cred_data)
+    firebase_admin.initialize_app(cred)
 
 # Initialize Celery
 def make_celery(app):
@@ -40,21 +61,34 @@ celery = make_celery(app)
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
+    print("Received data from frontend:", data)
+    if not data:
+        return jsonify({"status": "error", "message": "No JSON payload received"}), 400
+
     token = data.get("token")
-    print("Received data from frontend:", data)  # <-- Add this line
+    if not token:
+        return jsonify({"status": "error", "message": "Missing token"}), 400
+
     try:
         decoded_token = firebase_auth.verify_id_token(token)
         email = decoded_token.get("email")
+        print("Decoded token email:", email)  # Debugging line
+
         user = User.query.filter_by(email=email).first()
         if not user:
-            # Use favorite_lines instead of favorite_routes for consistency with dashboard.html
             user = User(email=email, favorite_lines=json.dumps([]))
             db.session.add(user)
             db.session.commit()
-        # Save the user email in the session so we know who is logged in
+
         session['user_email'] = email
         return jsonify({"status": "success", "email": email})
+
+    except firebase_auth.ExpiredIdTokenError:
+        return jsonify({"status": "error", "message": "Token expired"}), 400
+    except firebase_auth.InvalidIdTokenError:
+        return jsonify({"status": "error", "message": "Invalid token"}), 400
     except Exception as e:
+        print(f"Error verifying token: {e}")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 @app.route('/dashboard')
