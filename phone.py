@@ -1,4 +1,3 @@
-# phone.py
 import re
 import smtplib
 from email.mime.text import MIMEText
@@ -13,26 +12,16 @@ CARRIER_GATEWAYS = {
 }
 
 def send_sms_via_email(to_number, carrier, subject, body, app_config):
-    """
-    Sends an SMS via email-to-text.
-    - to_number: User's phone number (e.g., "3125551234" or "312 555 1234")
-    - carrier: The carrier identifier (e.g., "att")
-    - subject: The email subject (often ignored by SMS gateways)
-    - body: The text message body.
-    - app_config: A dict containing mail configuration.
-    """
     try:
         if carrier:
             gateway = CARRIER_GATEWAYS.get(carrier.lower())
             if not gateway:
                 raise ValueError("Invalid carrier provided.")
-            # Remove any non-digit characters (e.g., spaces, dashes, plus signs)
             clean_number = re.sub(r'\D', '', to_number)
             recipient = f"{clean_number}{gateway}"
         else:
             recipient = to_number
 
-        # For debugging purposes, print the recipient address:
         print("Sending SMS to:", recipient)
 
         msg = MIMEMultipart()

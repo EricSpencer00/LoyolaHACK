@@ -62,3 +62,7 @@ L.control.layers(null, overlays).addTo(map);
 // Add layers to map by default
 busLayer.addTo(map);
 trainLayer.addTo(map);
+
+// Example: Additional common JS can go here.
+console.log("Main JS loaded");
+

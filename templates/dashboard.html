@@ -3,6 +3,16 @@
 
 {% block content %}
 <div class="container my-4">
+  <!-- Live Transit Map (the map is featured at the top) -->
+  <div class="card mb-4">
+    <div class="card-header">
+      Live Transit Map
+    </div>
+    <div class="card-body p-0">
+      <div id="map" style="height: 400px;"></div>
+    </div>
+  </div>
+
   <div class="row">
     <!-- User Info & Home Location Card -->
     <div class="col-md-6 mb-4">
@@ -12,7 +22,7 @@
         </div>
         <div class="card-body">
           <h4 class="card-title">
-            Welcome, {% if user.phone_number %}{{ user.phone_number }}{% endif %}
+            Welcome, {{ user.phone_number }}
           </h4>
           <p class="card-text">
             Home Location:
@@ -64,21 +74,11 @@
     </div>
     <div class="card-body">
       <p class="card-text">
-        Set alerts for your favorite lines within specific time frames.
+        Set alerts for your favorite lines.
       </p>
       <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#notificationModal">
         Manage Notifications
       </button>
-    </div>
-  </div>
-
-  <!-- Live Transit Map Card -->
-  <div class="card">
-    <div class="card-header">
-      Live Transit Map
-    </div>
-    <div class="card-body p-0">
-      <div id="map" style="height: 400px;"></div>
     </div>
   </div>
 </div>
@@ -91,7 +91,7 @@
     <form id="homeForm" class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="homeModalLabel">Set Home Location</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
@@ -117,7 +117,7 @@
     <form id="lineForm" class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="lineModalLabel">Add Favorite Line</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
@@ -132,6 +132,14 @@
     </form>
   </div>
 </div>
+
+<div class="mb-3">
+  <label for="routeSearch" class="form-label">Search for nearby routes</label>
+  <input type="text" id="routeSearch" class="form-control" placeholder="Enter a transit line or keyword">
+</div>
+<button id="searchRoutes" class="btn btn-info mb-3">Search Routes</button>
+<ul id="searchResults" class="list-group"></ul>
+
 
 <!-- Notification Settings Modal -->
 <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
@@ -155,71 +163,73 @@
   </div>
 </div>
 
-<!-- Contact Information Modal (shown if missing phone/carrier) -->
-{% if not user.phone_number or not user.carrier %}
-<div class="modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form id="contactForm" class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="contactModalLabel">Update Contact Information</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label for="phoneNumber" class="form-label">Phone Number (digits only)</label>
-          <input type="text" class="form-control" id="phoneNumber" placeholder="e.g., 3125551234">
-        </div>
-        <div class="mb-3">
-          <label for="carrier" class="form-label">Carrier</label>
-          <select class="form-select" id="carrier">
-            <option value="">Select your carrier</option>
-            <option value="att">AT&amp;T</option>
-            <option value="tmobile">T-Mobile</option>
-            <option value="verizon">Verizon</option>
-            <option value="sprint">Sprint</option>
-            <option value="uscellular">US Cellular</option>
-          </select>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Contact Info</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // Safely output user's home location as JSON
-  var userHome = JSON.parse('{{ {"lat": user.home_lat, "lng": user.home_lng} | tojson | safe }}');
+  // Default center: Chicago
   var defaultCenter = [41.8781, -87.6298];
+
+  // Use user's saved home location if available, otherwise default to Chicago
   var mapCenter = (userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
 
-  // Initialize a simplified Leaflet map with Stamen Toner Lite tiles
+  // Initialize the map
   var map = L.map('map').setView(mapCenter, 13);
   L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
     attribution: 'Map tiles by Stamen Design',
     maxZoom: 18
   }).addTo(map);
 
-  // Create layer groups for buses and trains
+  // Create a draggable marker for home location
+  var homeMarker = L.marker(mapCenter, { draggable: true }).addTo(map);
+  homeMarker.bindPopup("Drag me to set your home location.").openPopup();
+
+  // Update home location on marker dragend event
+  homeMarker.on('dragend', function(e) {
+    var newPos = e.target.getLatLng();
+    fetch('/api/set_home', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: newPos.lat, lng: newPos.lng })
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);
+      // Optionally update the popup message or UI to reflect the change.
+    })
+    .catch(console.error);
+  });
+
+  // Pass user home location as JSON to JS
+  var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
+  
+  // Default center if not set
+  var defaultCenter = [41.8781, -87.6298];
+  var mapCenter = (userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
+
+  // Initialize the map
+  var map = L.map('map').setView(mapCenter, 13);
+  L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
+    attribution: 'Map tiles by Stamen Design',
+    maxZoom: 18
+  }).addTo(map);
+
+  // Use emoji markers with divIcon for a simpler, prettier look.
+  var busIcon = L.divIcon({ html: '🚌', className: 'emoji-icon', iconSize: [30, 30] });
+  var trainIcon = L.divIcon({ html: '🚆', className: 'emoji-icon', iconSize: [30, 30] });
+
+  // Layer groups
   var busLayer = L.layerGroup();
   var trainLayer = L.layerGroup();
 
-  // Fetch and display bus data within user's area
+  // Fetch and display bus data
   fetch('/api/realtime?type=bus')
     .then(response => response.json())
     .then(data => {
       data.forEach(function(item) {
-        L.marker([item.lat, item.lng], {
-          icon: L.icon({
-            iconUrl: '/static/images/bus-icon.png',
-            iconSize: [25, 25]
-          })
-        }).bindPopup("<strong>Bus " + item.line + "</strong>").addTo(busLayer);
+        L.marker([item.lat, item.lng], { icon: busIcon })
+          .bindPopup("<strong>Bus " + item.line + "</strong>")
+          .addTo(busLayer);
       });
     });
 
@@ -228,16 +238,13 @@
     .then(response => response.json())
     .then(data => {
       data.forEach(function(item) {
-        L.marker([item.lat, item.lng], {
-          icon: L.icon({
-            iconUrl: '/static/images/train-icon.png',
-            iconSize: [25, 25]
-          })
-        }).bindPopup("<strong>Train " + item.line + "</strong>").addTo(trainLayer);
+        L.marker([item.lat, item.lng], { icon: trainIcon })
+          .bindPopup("<strong>Train " + item.line + "</strong>")
+          .addTo(trainLayer);
       });
     });
 
-  // Add overlay control and default layers to the map
+  // Add layers to the map
   var overlays = { "Buses": busLayer, "Trains": trainLayer };
   L.control.layers(null, overlays).addTo(map);
   busLayer.addTo(map);
@@ -290,7 +297,6 @@
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        phone_number: "{{ user.phone_number }}",
         notification_settings: { time: time }
       })
     })
@@ -301,45 +307,8 @@
     })
     .catch(console.error);
   });
-</script>
 
-{% if not user.phone_number or not user.carrier %}
-<script>
-  // Contact Form Submission & display modal if contact info is missing
-  document.getElementById('contactForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var phone = document.getElementById('phoneNumber').value;
-    var carrier = document.getElementById('carrier').value;
-    fetch('/api/set_notification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: "{{ user.email }}",
-        notification_settings: {},
-        phone_number: phone,
-        carrier: carrier
-      })
-    })
-    .then(response => response.json())
-    .then(function(data) {
-      alert(data.message);
-      var contactModalEl = document.getElementById('contactModal');
-      var modal = bootstrap.Modal.getInstance(contactModalEl);
-      modal.hide();
-      location.reload();
-    })
-    .catch(console.error);
-  });
-
-  document.addEventListener("DOMContentLoaded", function() {
-    var contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
-    contactModal.show();
-  });
-</script>
-{% endif %}
-
-<script>
-  // Function to remove a favorite transit line.
+  // Remove Favorite Function
   function removeFavorite(line) {
     fetch('/api/remove_favorite', {
       method: 'POST',
@@ -357,5 +326,47 @@
     })
     .catch(console.error);
   }
+</script>
+<script>
+document.getElementById('searchRoutes').addEventListener('click', function() {
+  var query = document.getElementById('routeSearch').value;
+  // Make sure we have the user's home coordinates
+  var coords = (userHome.lat && userHome.lng) ? { lat: userHome.lat, lng: userHome.lng } : { lat: defaultCenter[0], lng: defaultCenter[1] };
+  fetch(`/api/search_routes?lat=${coords.lat}&lng=${coords.lng}&q=${query}`)
+    .then(response => response.json())
+    .then(data => {
+      var resultsList = document.getElementById('searchResults');
+      resultsList.innerHTML = '';
+      if(data.length) {
+        data.forEach(route => {
+          var li = document.createElement('li');
+          li.className = 'list-group-item';
+          li.textContent = route.name + ' (' + route.distance.toFixed(2) + ' miles)';
+          // You can also add a button to add the route as a favorite:
+          var addBtn = document.createElement('button');
+          addBtn.className = 'btn btn-sm btn-success float-end';
+          addBtn.textContent = 'Add';
+          addBtn.onclick = function() {
+            fetch('/api/add_favorite', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ line: route.name })
+            })
+            .then(resp => resp.json())
+            .then(res => {
+              alert(res.message);
+              location.reload();
+            })
+            .catch(console.error);
+          };
+          li.appendChild(addBtn);
+          resultsList.appendChild(li);
+        });
+      } else {
+        resultsList.innerHTML = '<li class="list-group-item">No routes found within 1.5 miles.</li>';
+      }
+    })
+    .catch(console.error);
+});
 </script>
 {% endblock %}
