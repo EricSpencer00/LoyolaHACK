@@ -8,16 +8,20 @@
   <div class="card mb-4">
     <div class="card-body">
       <h3 class="card-title">My Transit Dashboard</h3>
-      <p class="card-text">Welcome, {{ user.email }}!</p>
       <p class="card-text">
-        Home Location: 
+        Welcome, {% if user.email %}{{ user.email }}{% else %}{{ user.phone_number }}{% endif %}!
+      </p>
+      <p class="card-text">
+        Home Location:
         {% if user.home_lat and user.home_lng %}
           ({{ user.home_lat }}, {{ user.home_lng }})
         {% else %}
           <span class="text-danger">Not set</span>
         {% endif %}
       </p>
-      <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#homeModal">Set Home Location</a>
+      <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#homeModal">
+        Set Home Location
+      </a>
     </div>
   </div>
 
@@ -29,13 +33,17 @@
         {% for line in favorite_lines %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             {{ line }}
-            <button class="btn btn-sm btn-outline-danger" onclick="removeFavorite('{{ line }}')">Remove</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeFavorite('{{ line }}')">
+              Remove
+            </button>
           </li>
         {% else %}
           <li class="list-group-item">No favorite lines yet.</li>
         {% endfor %}
       </ul>
-      <button class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#lineModal">Add Favorite Line</button>
+      <button class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#lineModal">
+        Add Favorite Line
+      </button>
     </div>
   </div>
 
@@ -43,8 +51,12 @@
   <div class="card mb-4">
     <div class="card-body">
       <h4 class="card-title">Notification Settings</h4>
-      <p class="card-text">Set alerts for your favorite lines within specific time frames.</p>
-      <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#notificationModal">Manage Notifications</button>
+      <p class="card-text">
+        Set alerts for your favorite lines within specific time frames.
+      </p>
+      <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#notificationModal">
+        Manage Notifications
+      </button>
     </div>
   </div>
 
@@ -54,7 +66,6 @@
       Live Transit Map
     </div>
     <div class="card-body p-0">
-      <!-- Reduced map height for a simpler, smaller map -->
       <div id="map" style="height: 400px;"></div>
     </div>
   </div>
@@ -70,10 +81,12 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
+        <!-- Phone Number Input -->
         <div class="mb-3">
           <label for="phoneNumber" class="form-label">Phone Number (digits only)</label>
           <input type="text" class="form-control" id="phoneNumber" placeholder="e.g., 3125551234">
         </div>
+        <!-- Carrier Selection -->
         <div class="mb-3">
           <label for="carrier" class="form-label">Carrier</label>
           <select class="form-select" id="carrier">
@@ -94,40 +107,69 @@
   </div>
 </div>
 
-<!-- (Optional) Modals for home location and notifications can be defined similarly -->
+<!-- Additional modals for setting home location, adding favorite lines, and managing notifications can be defined similarly -->
 
 {% if not user.phone_number or not user.carrier %}
 <script>
-  // Automatically show the contact modal if phone or carrier is missing.
+  // Automatically show the contact modal if phone or carrier info is missing.
   document.addEventListener("DOMContentLoaded", function() {
     var contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
     contactModal.show();
   });
-
-  // Handle submission of the contact form
+</script>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById('notification').addEventListener('click', function() {
+    var notificationModalEl = document.getElementById('notificationModal');
+    var modal = bootstrap.Modal.getInstance(notificationModalEl);
+    modal.show();
+  });
+  // Handle submission of the contact form.
   document.getElementById('contactForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const phone = document.getElementById('phoneNumber').value;
     const carrier = document.getElementById('carrier').value;
     fetch('/api/set_notification', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: "{{ user.email }}",
-        notification_settings: {},  // Keep existing settings if any
+        notification_settings: {},
         phone_number: phone,
         carrier: carrier
       })
-    }).then(response => response.json())
-      .then(data => {
-        alert(data.status);
-        // Hide modal after saving
-        var contactModalEl = document.getElementById('contactModal');
-        var modal = bootstrap.Modal.getInstance(contactModalEl);
-        modal.hide();
-      })
-      .catch(console.error);
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);
+      var contactModalEl = document.getElementById('contactModal');
+      var modal = bootstrap.Modal.getInstance(contactModalEl);
+      modal.hide();
+      // Optionally reload the page to update displayed info.
+      location.reload();
+    })
+    .catch(console.error);
   });
+
+  // Function to remove a favorite transit line.
+  function removeFavorite(line) {
+    fetch('/api/remove_favorite', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ line: line })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert('Favorite removed');
+        location.reload(); // Refresh page to update the favorites list.
+      } else {
+        alert(data.message);
+      }
+    })
+    .catch(console.error);
+  }
 </script>
-{% endif %}
 {% endblock %}

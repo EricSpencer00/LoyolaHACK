@@ -71,7 +71,6 @@
     .then(response => response.json())
     .then(data => {
       if (data.status === 'success') {
-        // Redirect to dashboard upon successful sign-in
         window.location.href = '/dashboard';
       } else {
         alert('Verification failed: ' + data.message);

@@ -26,7 +26,7 @@ def send_sms_via_email(to_number, carrier, subject, body, app_config):
             gateway = CARRIER_GATEWAYS.get(carrier.lower())
             if not gateway:
                 raise ValueError("Invalid carrier provided.")
-            # Remove any non-digit characters
+            # Remove any non-digit characters (e.g., spaces, dashes, plus signs)
             clean_number = re.sub(r'\D', '', to_number)
             recipient = f"{clean_number}{gateway}"
         else:

@@ -10,7 +10,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 var busLayer = L.layerGroup();
 var trainLayer = L.layerGroup();
 
-// Fetch and display bus data (ensure your API supports the "type" query param)
+// Fetch and display bus data (dummy API endpoint)
 fetch('/api/realtime?type=bus')
     .then(response => response.json())
     .then(data => {
@@ -33,7 +33,7 @@ fetch('/api/realtime?type=train')
         data.forEach(train => {
             L.marker([train.lat, train.lng], {
                 icon: L.icon({
-                    iconUrl: '/static/images/train-icon.png', // Update with your correct path
+                    iconUrl: '/static/images/train-icon.png',
                     iconSize: [25, 25]
                 })
             })
