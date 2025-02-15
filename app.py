@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from config import Config
 from celery import Celery
@@ -45,16 +45,28 @@ def login():
     try:
         decoded_token = firebase_auth.verify_id_token(token)
         email = decoded_token.get("email")
-        # Retrieve or create user record
         user = User.query.filter_by(email=email).first()
         if not user:
-            user = User(email=email, favorite_routes=json.dumps([]))
+            # Use favorite_lines instead of favorite_routes for consistency with dashboard.html
+            user = User(email=email, favorite_lines=json.dumps([]))
             db.session.add(user)
             db.session.commit()
-        # (Set session or return a JWT for your app as needed)
+        # Save the user email in the session so we know who is logged in
+        session['user_email'] = email
         return jsonify({"status": "success", "email": email})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/dashboard')
+def dashboard():
+    user_email = session.get('user_email')
+    if not user_email:
+        # If no user is logged in, redirect to the home page
+        return redirect(url_for('index'))
+    user = User.query.filter_by(email=user_email).first()
+    # Parse the favorite_lines (if set) to pass to the template
+    favorite_lines = json.loads(user.favorite_lines) if user.favorite_lines else []
+    return render_template('dashboard.html', user=user, favorite_lines=favorite_lines)
 
 # Index route
 @app.route('/')
@@ -68,11 +80,6 @@ def index():
         'appId': os.getenv('FB_APP_ID')
     }
     return render_template('index.html')
-
-@app.route('/dashboard')
-def dashboard():
-    user = User
-    return render_template('dashboard.html')
 
 # API endpoint for real-time transit data (dummy implementation)
 @app.route('/api/realtime', methods=['GET'])

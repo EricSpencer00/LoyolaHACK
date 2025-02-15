@@ -5,9 +5,12 @@ import json
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    phone_number = db.Column(db.String(20))  # Store the user's phone number
-    carrier = db.Column(db.String(50))       # Store the user's carrier
+    phone_number = db.Column(db.String(20))
+    carrier = db.Column(db.String(50))
     notification_settings = db.Column(db.Text)
+    favorite_lines = db.Column(db.Text)  # New: stores favorite transit lines as JSON
+    home_lat = db.Column(db.Float)         # New: user’s home latitude
+    home_lng = db.Column(db.Float)         # New: user’s home longitude
 
     def __repr__(self):
         return f'<User {self.email}>'
