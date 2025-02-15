@@ -1,8 +1,25 @@
 {% extends 'base.html' %}
+{% block title %}Home - CTA Transit Tracker{% endblock %}
 
-<button id="google-signin">Sign In with Google</button>
+{% block content %}
+<div class="container my-5 text-center">
+  <h1 class="display-4">Welcome to CTA Transit Tracker</h1>
+  <p class="lead">Track real-time CTA buses and trains with predictive analytics.</p>
+  <button id="google-signin" class="btn btn-primary btn-lg">Sign In with Google</button>
+
+  <div class="card mx-auto mt-5" style="max-width: 600px;">
+    <div class="card-header">
+      Live Transit Map
+    </div>
+    <div class="card-body p-0">
+      <!-- Smaller, simpler map -->
+      <div id="map" style="height: 300px;"></div>
+    </div>
+  </div>
+</div>
 
 <script>
+  // Firebase is available from the head.
   const auth = firebase.auth();
   const provider = new firebase.auth.GoogleAuthProvider();
 
@@ -17,7 +34,8 @@
             body: JSON.stringify({ token })
           }).then(response => {
             if (response.ok) {
-              location.reload();
+              // After successful login, redirect to the dashboard
+              window.location.href = "/dashboard";
             }
           });
         });
@@ -25,15 +43,4 @@
       .catch((error) => console.error('Google Sign-In error:', error));
   });
 </script>
-
-{% block head %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-{% endblock %}
-
-{% block content %}
-<div id="map" style="height: 600px;"></div>
-<div id="predictions">
-    <h2>Predicted Arrival Times</h2>
-    <ul id="prediction-list"></ul>
-</div>
 {% endblock %}

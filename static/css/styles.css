@@ -24,3 +24,8 @@ header, footer {
 #predictions h2 {
     margin-top: 0;
 }
+
+#map {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}

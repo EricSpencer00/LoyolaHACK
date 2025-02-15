@@ -1,23 +1,133 @@
 {% extends 'base.html' %}
+{% block title %}Dashboard - CTA Transit Tracker{% endblock %}
+
 {% block content %}
-<h2>My Transit Dashboard</h2>
-<div id="user-info">
-  <p>Welcome, {{ user.email }}!</p>
-  <p>Home Location: {% if user.home_lat %} ({{ user.home_lat }}, {{ user.home_lng }}) {% else %} Not set {% endif %}</p>
-  <!-- Add a form or map to update the home location -->
+<div class="container my-4">
+
+  <!-- User Info Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h3 class="card-title">My Transit Dashboard</h3>
+      <p class="card-text">Welcome, {{ user.email }}!</p>
+      <p class="card-text">
+        Home Location: 
+        {% if user.home_lat and user.home_lng %}
+          ({{ user.home_lat }}, {{ user.home_lng }})
+        {% else %}
+          <span class="text-danger">Not set</span>
+        {% endif %}
+      </p>
+      <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#homeModal">Set Home Location</a>
+    </div>
+  </div>
+
+  <!-- Favorite Lines Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="card-title">Favorite Lines</h4>
+      <ul class="list-group">
+        {% for line in favorite_lines %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ line }}
+            <button class="btn btn-sm btn-outline-danger" onclick="removeFavorite('{{ line }}')">Remove</button>
+          </li>
+        {% else %}
+          <li class="list-group-item">No favorite lines yet.</li>
+        {% endfor %}
+      </ul>
+      <button class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#lineModal">Add Favorite Line</button>
+    </div>
+  </div>
+
+  <!-- Notification Settings Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="card-title">Notification Settings</h4>
+      <p class="card-text">Set alerts for your favorite lines within specific time frames.</p>
+      <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#notificationModal">Manage Notifications</button>
+    </div>
+  </div>
+
+  <!-- Map Card -->
+  <div class="card">
+    <div class="card-header">
+      Live Transit Map
+    </div>
+    <div class="card-body p-0">
+      <!-- Reduced map height for a simpler, smaller map -->
+      <div id="map" style="height: 400px;"></div>
+    </div>
+  </div>
+
 </div>
-<div id="favorite-lines">
-  <h3>Favorite Lines</h3>
-  <ul>
-    {% for line in favorite_lines %}
-    <li>{{ line }} <button onclick="removeFavorite('{{ line }}')">Remove</button></li>
-    {% endfor %}
-  </ul>
-  <!-- Add a form to add a new favorite line -->
+
+<!-- Modal for Contact Information (Phone & Carrier) -->
+<div class="modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="contactForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="contactModalLabel">Update Contact Information</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="phoneNumber" class="form-label">Phone Number (digits only)</label>
+          <input type="text" class="form-control" id="phoneNumber" placeholder="e.g., 3125551234">
+        </div>
+        <div class="mb-3">
+          <label for="carrier" class="form-label">Carrier</label>
+          <select class="form-select" id="carrier">
+            <option value="">Select your carrier</option>
+            <option value="att">AT&amp;T</option>
+            <option value="tmobile">T-Mobile</option>
+            <option value="verizon">Verizon</option>
+            <option value="sprint">Sprint</option>
+            <option value="uscellular">US Cellular</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Contact Info</button>
+      </div>
+    </form>
+  </div>
 </div>
-<div id="notification-settings">
-  <h3>Notification Settings</h3>
-  <p>Set alerts for your favorite lines within specific time ranges:</p>
-  <!-- Form to add/update notification preferences -->
-</div>
+
+<!-- (Optional) Modals for home location and notifications can be defined similarly -->
+
+{% if not user.phone_number or not user.carrier %}
+<script>
+  // Automatically show the contact modal if phone or carrier is missing.
+  document.addEventListener("DOMContentLoaded", function() {
+    var contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
+    contactModal.show();
+  });
+
+  // Handle submission of the contact form
+  document.getElementById('contactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const phone = document.getElementById('phoneNumber').value;
+    const carrier = document.getElementById('carrier').value;
+    fetch('/api/set_notification', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        email: "{{ user.email }}",
+        notification_settings: {},  // Keep existing settings if any
+        phone_number: phone,
+        carrier: carrier
+      })
+    }).then(response => response.json())
+      .then(data => {
+        alert(data.status);
+        // Hide modal after saving
+        var contactModalEl = document.getElementById('contactModal');
+        var modal = bootstrap.Modal.getInstance(contactModalEl);
+        modal.hide();
+      })
+      .catch(console.error);
+  });
+</script>
+{% endif %}
 {% endblock %}
