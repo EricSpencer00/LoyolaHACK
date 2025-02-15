@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+{% endblock %}
+
+{% block content %}
+<div id="map" style="height: 600px;"></div>
+<div id="predictions">
+    <h2>Predicted Arrival Times</h2>
+    <ul id="prediction-list"></ul>
+</div>
+{% endblock %}
