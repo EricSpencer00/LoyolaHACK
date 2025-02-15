@@ -8,7 +8,6 @@ import json
 import firebase_admin
 from firebase_admin import auth as firebase_auth
 from flask_bootstrap import Bootstrap
-from twilio.rest import Client
 import dotenv
 from phone import send_sms_via_email
 import os
