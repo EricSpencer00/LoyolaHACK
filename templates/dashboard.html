@@ -12,7 +12,7 @@
         </div>
         <div class="card-body">
           <h4 class="card-title">
-            Welcome, {% if user.email %}{{ user.email }}{% else %}{{ user.phone_number }}{% endif %}
+            Welcome, {% if user.phone_number %}{{ user.phone_number }}{% endif %}
           </h4>
           <p class="card-text">
             Home Location:

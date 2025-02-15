@@ -5,7 +5,7 @@ import json
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=True)  # Add this if missing
+    # email = db.Column(db.String(120), unique=True, nullable=True)  # Add this if missing
     phone_number = db.Column(db.String(15), unique=True, nullable=False)
     carrier = db.Column(db.String(50), nullable=True)
     notification_settings = db.Column(db.Text, nullable=True)
