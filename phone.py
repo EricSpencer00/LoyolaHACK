@@ -1,3 +1,5 @@
+# phone.py
+import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -10,26 +12,33 @@ CARRIER_GATEWAYS = {
     "uscellular": "@email.uscc.net"
 }
 
-def send_sms_via_email(to_contact, carrier, subject, body, app_config):
+def send_sms_via_email(to_number, carrier, subject, body, app_config):
     """
-    If a valid carrier is provided, build the recipient as phone_number@gateway.
-    Otherwise, assume 'to_contact' is already an email address.
+    Sends an SMS via email-to-text.
+    - to_number: User's phone number (e.g., "3125551234" or "312 555 1234")
+    - carrier: The carrier identifier (e.g., "att")
+    - subject: The email subject (often ignored by SMS gateways)
+    - body: The text message body.
+    - app_config: A dict containing mail configuration.
     """
     try:
         if carrier:
             gateway = CARRIER_GATEWAYS.get(carrier.lower())
             if not gateway:
                 raise ValueError("Invalid carrier provided.")
-            recipient = f"{to_contact}{gateway}"
+            # Remove any non-digit characters
+            clean_number = re.sub(r'\D', '', to_number)
+            recipient = f"{clean_number}{gateway}"
         else:
-            # Fallback to using the provided contact as an email address.
-            recipient = to_contact
+            recipient = to_number
+
+        # For debugging purposes, print the recipient address:
+        print("Sending SMS to:", recipient)
 
         msg = MIMEMultipart()
         msg["From"] = app_config.get("MAIL_DEFAULT_SENDER")
         msg["To"] = recipient
         msg["Subject"] = subject
-
         msg.attach(MIMEText(body, 'plain'))
 
         server = smtplib.SMTP(app_config.get("MAIL_SERVER"), app_config.get("MAIL_PORT"))
@@ -37,7 +46,7 @@ def send_sms_via_email(to_contact, carrier, subject, body, app_config):
         server.login(app_config.get("MAIL_USERNAME"), app_config.get("MAIL_PASSWORD"))
         server.sendmail(app_config.get("MAIL_DEFAULT_SENDER"), recipient, msg.as_string())
         server.quit()
-
         print(f"SMS (via email) sent to {recipient}")
     except Exception as e:
         print(f"Failed to send SMS: {e}")
+        raise

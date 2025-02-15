@@ -1,44 +1,83 @@
 {% extends 'base.html' %}
-{% block title %}Home - CTA Transit Tracker{% endblock %}
+{% block title %}Sign In - CTA Transit Tracker{% endblock %}
 
 {% block content %}
-<div class="container my-5 text-center">
-  <h1 class="display-4">Welcome to CTA Transit Tracker</h1>
-  <p class="lead">Track real-time CTA buses and trains with predictive analytics.</p>
-  <button id="google-signin" class="btn btn-primary btn-lg">Sign In with Google</button>
+<div class="container my-5">
+  <h1 class="display-4 text-center">Sign In</h1>
+  <div id="login-section">
+    <!-- Phone Number Input -->
+    <div class="mb-3">
+      <label for="phoneNumber" class="form-label">Phone Number (e.g., 3125551234)</label>
+      <input type="text" id="phoneNumber" class="form-control" placeholder="3125551234">
+    </div>
+    <!-- Carrier Selection -->
+    <div class="mb-3">
+      <label for="carrier" class="form-label">Carrier</label>
+      <select id="carrier" class="form-select">
+        <option value="">Select your carrier</option>
+        <option value="att">AT&amp;T</option>
+        <option value="tmobile">T-Mobile</option>
+        <option value="verizon">Verizon</option>
+        <option value="sprint">Sprint</option>
+        <option value="uscellular">US Cellular</option>
+      </select>
+    </div>
+    <button id="send-otp" class="btn btn-primary">Send OTP</button>
+  </div>
 
-  <div class="card mx-auto mt-5" style="max-width: 600px;">
-    <div class="card-header">
-      Live Transit Map
+  <div id="otp-section" class="mt-4" style="display:none;">
+    <div class="mb-3">
+      <label for="otp" class="form-label">Enter OTP</label>
+      <input type="text" id="otp" class="form-control" placeholder="Enter the 6-digit code">
     </div>
-    <div class="card-body p-0">
-      <!-- Smaller, simpler map -->
-      <div id="map" style="height: 300px;"></div>
-    </div>
+    <button id="verify-otp" class="btn btn-success">Verify OTP</button>
   </div>
 </div>
 
 <script>
-  const auth = firebase.auth();
-  const provider = new firebase.auth.GoogleAuthProvider();
+  document.getElementById('send-otp').addEventListener('click', () => {
+    const phoneNumber = document.getElementById('phoneNumber').value;
+    const carrier = document.getElementById('carrier').value;
+    if (!phoneNumber || !carrier) {
+      alert('Please enter your phone number and select a carrier.');
+      return;
+    }
+    fetch('/api/send_otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number: phoneNumber, carrier: carrier })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert('OTP sent! Check your texts.');
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('otp-section').style.display = 'block';
+      } else {
+        alert('Error sending OTP: ' + data.message);
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  });
 
-  document.getElementById('google-signin').addEventListener('click', () => {
-    auth.signInWithPopup(provider)
-      .then((result) => {
-        result.user.getIdToken().then(token => {
-          fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token })
-          }).then(response => {
-            if (response.ok) {
-              window.location.href = "/dashboard";
-            }
-          });
-        });
-      })
-      .catch((error) => console.error('Google Sign-In error:', error));
+  document.getElementById('verify-otp').addEventListener('click', () => {
+    const phoneNumber = document.getElementById('phoneNumber').value;
+    const otp = document.getElementById('otp').value;
+    fetch('/api/verify_otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number: phoneNumber, otp: otp })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        // Redirect to dashboard upon successful sign-in
+        window.location.href = '/dashboard';
+      } else {
+        alert('Verification failed: ' + data.message);
+      }
+    })
+    .catch(error => console.error('Error:', error));
   });
 </script>
-
 {% endblock %}
