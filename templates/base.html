@@ -1,44 +1,47 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-gray-100">
 <head>
     <meta charset="UTF-8">
     <title>CTA Transit Tracker</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    {% block head %}{% endblock %}
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js"></script>
+    <!-- Firebase Config -->
+    <script>
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+      };
+      firebase.initializeApp(firebaseConfig);
+    </script>
 </head>
-<body>
-    <header>
-        <h1>CTA Transit Tracker with Predictive Analytics</h1>
+<body class="flex flex-col min-h-screen">
+    <!-- Header -->
+    <header class="bg-ctaBlue text-white p-4 shadow-md flex items-center justify-between">
+        <h1 class="text-2xl font-bold">CTA Transit Tracker</h1>
+        <button id="google-signin" class="bg-ctaGreen px-4 py-2 rounded hover:bg-green-700">Sign In with Google</button>
     </header>
-    <main>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6">
         {% block content %}{% endblock %}
     </main>
-    <footer>
-        <p>&copy; 2025 CTA Transit Tracker</p>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-100 p-4 text-center">
+        &copy; 2025 CTA Transit Tracker. All rights reserved.
     </footer>
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
-
-<!-- Firebase App (the core Firebase SDK) -->
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-<!-- Firebase Authentication -->
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
-<!-- Firebase Messaging -->
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js"></script>
-
-<script>
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-  };
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-</script>
