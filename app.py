@@ -7,8 +7,10 @@ import random
 import json
 import firebase_admin
 from firebase_admin import auth as firebase_auth
+from flask_bootstrap import Bootstrap
 
 app = Flask(__name__)
+Bootstrap(app)
 app.config.from_object(Config)
 db = SQLAlchemy(app)
 
