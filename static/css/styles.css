@@ -29,3 +29,9 @@ header, footer {
     border: 1px solid #dee2e6;
     border-radius: 0.25rem;
 }
+
+.emoji-icon {
+    font-size: 1.8rem;
+    text-align: center;
+  }
+  

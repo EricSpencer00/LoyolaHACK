@@ -3,6 +3,7 @@ import random
 import json
 import datetime
 import math
+import csv
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from phone import send_sms_via_email
 from flask_sqlalchemy import SQLAlchemy
@@ -10,7 +11,7 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Configure mail settings (ensure you have these env variables set)
+# Configure mail settings (ensure your env variables are set)
 app.config.update({
     "MAIL_SERVER": "smtp.gmail.com",
     "MAIL_PORT": 587,
@@ -19,7 +20,7 @@ app.config.update({
     "MAIL_DEFAULT_SENDER": os.getenv('MAIL_DEFAULT_SENDER')
 })
 
-# Configure your database (here we use SQLite for demonstration)
+# Configure SQLite database for demonstration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cta_tracker.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -40,17 +41,13 @@ class User(db.Model):
     notification_settings = db.Column(db.Text)  # Stored as JSON object
 
     def get_favorites(self):
-        if self.favorite_lines:
-            return json.loads(self.favorite_lines)
-        return []
+        return json.loads(self.favorite_lines) if self.favorite_lines else []
 
     def set_favorites(self, fav_list):
         self.favorite_lines = json.dumps(fav_list)
 
     def get_notification_settings(self):
-        if self.notification_settings:
-            return json.loads(self.notification_settings)
-        return {}
+        return json.loads(self.notification_settings) if self.notification_settings else {}
 
     def set_notification_settings(self, settings):
         self.notification_settings = json.dumps(settings)
@@ -59,8 +56,9 @@ class User(db.Model):
 # Helper Functions
 # ------------------------
 def generate_otp():
-    """Generate a random 6-digit OTP."""
-    return str(random.randint(100000, 999999))
+    otp = str(random.randint(100000, 999999))
+    print("Generated OTP:", otp)
+    return otp
 
 def get_current_user():
     phone = session.get("phone_number")
@@ -69,7 +67,6 @@ def get_current_user():
     return None
 
 def haversine(lat1, lng1, lat2, lng2):
-    # approximate radius of earth in miles
     R = 3958.8  
     dLat = math.radians(lat2 - lat1)
     dLng = math.radians(lng2 - lng1)
@@ -78,15 +75,47 @@ def haversine(lat1, lng1, lat2, lng2):
     return R * c
 
 # ------------------------
-# Routes & API Endpoints
+# Load GTFS Shapes Data
 # ------------------------
+shapes = {}  # key: shape_id, value: list of point dictionaries
+with open('./google_transit/shapes.txt', newline='') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        shape_id = row['shape_id']
+        point = {
+            'lat': float(row['shape_pt_lat']),
+            'lon': float(row['shape_pt_lon']),
+            'seq': int(row['shape_pt_sequence']),
+            'dist': float(row['shape_dist_traveled']) if row['shape_dist_traveled'] else None
+        }
+        shapes.setdefault(shape_id, []).append(point)
+
+for shape_id in shapes:
+    shapes[shape_id].sort(key=lambda p: p['seq'])
+
+@app.route('/api/gtfs_shapes', methods=['GET'])
+def gtfs_shapes():
+    try:
+        sw_lat = float(request.args.get('sw_lat'))
+        sw_lng = float(request.args.get('sw_lng'))
+        ne_lat = float(request.args.get('ne_lat'))
+        ne_lng = float(request.args.get('ne_lng'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid or missing bounding box parameters.'}), 400
+
+    filtered_shapes = {}
+    for shape_id, points in shapes.items():
+        visible_points = [
+            {'lat': p['lat'], 'lon': p['lon'], 'seq': p['seq']}
+            for p in points
+            if sw_lat <= p['lat'] <= ne_lat and sw_lng <= p['lon'] <= ne_lng
+        ]
+        if visible_points:
+            filtered_shapes[shape_id] = visible_points
+    return jsonify(filtered_shapes)
+
 @app.route("/")
 def index():
-    """
-    The landing page shows the map first.
-    If the user is logged in, display the dashboard.
-    Otherwise, show the sign in page.
-    """
     if session.get("authenticated"):
         return redirect(url_for("dashboard"))
     return render_template("signin.html")
@@ -108,7 +137,6 @@ def send_otp():
     
     otp = generate_otp()
     OTPS[phone_number] = otp
-
     try:
         send_sms_via_email(
             to_number=phone_number,
@@ -126,11 +154,9 @@ def verify_otp():
     data = request.get_json()
     phone_number = data.get("phone_number")
     otp = data.get("otp")
-    # Allow a test OTP ("123456") for debugging.
-    if OTPS.get(phone_number) == otp or otp == "123456":
+    if OTPS.get(phone_number) == otp:
         session["authenticated"] = True
         session["phone_number"] = phone_number
-        # Retrieve or create the user
         user = User.query.filter_by(phone_number=phone_number).first()
         if not user:
             user = User(
@@ -153,7 +179,6 @@ def search_routes():
     lng = float(request.args.get("lng", -87.6298))
     query = request.args.get("q", "").lower()
     
-    # Dummy list of routes with their approximate coordinates (for demonstration)
     routes = [
         {"name": "Blue Line", "lat": 41.881, "lng": -87.627},
         {"name": "Red Line", "lat": 41.875, "lng": -87.630},
@@ -168,7 +193,6 @@ def search_routes():
             if distance <= 1.5:
                 route["distance"] = distance
                 matching_routes.append(route)
-    
     return jsonify(matching_routes)
 
 @app.route("/api/set_home", methods=["POST"])
@@ -191,11 +215,9 @@ def add_favorite():
     line = data.get("line")
     if not line:
         return jsonify({"status": "error", "message": "No transit line provided."})
-    
     favorites = user.get_favorites()
     if line in favorites:
         return jsonify({"status": "error", "message": "Already added."})
-    
     favorites.append(line)
     user.set_favorites(favorites)
     db.session.commit()
@@ -226,7 +248,6 @@ def set_notification():
     time_val = data.get("notification_settings", {}).get("time")
     if time_val:
         settings["time"] = time_val
-    # Update contact info if provided.
     phone = data.get("phone_number")
     carrier = data.get("carrier")
     if phone:
@@ -239,10 +260,6 @@ def set_notification():
 
 @app.route("/api/realtime")
 def realtime():
-    """
-    Simulate returning real-time transit data.
-    In a production app, query a transit API here.
-    """
     transit_type = request.args.get("type")
     dummy_data = []
     if transit_type == "bus":
@@ -257,11 +274,8 @@ def realtime():
         ]
     return jsonify(dummy_data)
 
-# ------------------------
-# Run the App
-# ------------------------
 if __name__ == "__main__":
-    # Uncomment the next line to create the tables on first run.
+    # Uncomment the lines below on first run to create the tables:
     # with app.app_context():
     #     db.create_all()
     app.run(debug=True)

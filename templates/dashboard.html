@@ -84,7 +84,6 @@
 </div>
 
 <!-- Modals -->
-
 <!-- Home Location Modal -->
 <div class="modal fade" id="homeModal" tabindex="-1" aria-labelledby="homeModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -140,7 +139,6 @@
 <button id="searchRoutes" class="btn btn-info mb-3">Search Routes</button>
 <ul id="searchResults" class="list-group"></ul>
 
-
 <!-- Notification Settings Modal -->
 <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -162,187 +160,190 @@
     </form>
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // Default center: Chicago
-  var defaultCenter = [41.8781, -87.6298];
+// Initialize user home location and map center
+var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
+var defaultCenter = [41.8781, -87.6298];
+var mapCenter = (userHome && userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
 
-  // Use user's saved home location if available, otherwise default to Chicago
-  var mapCenter = (userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
+// Initialize the map with CartoDB Positron tiles
+var map = L.map('map').setView(mapCenter, 13);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+  maxZoom: 19
+}).addTo(map);
 
-  // Initialize the map
-  var map = L.map('map').setView(mapCenter, 13);
-  L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
-    attribution: 'Map tiles by Stamen Design',
-    maxZoom: 18
-  }).addTo(map);
+// Create a draggable home marker
+var homeMarker = L.marker(mapCenter, { draggable: true }).addTo(map);
+homeMarker.bindPopup("Drag me to set your home location.").openPopup();
+homeMarker.on('dragend', function(e) {
+  var newPos = e.target.getLatLng();
+  fetch('/api/set_home', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat: newPos.lat, lng: newPos.lng })
+  })
+  .then(response => response.json())
+  .then(data => { alert(data.message); })
+  .catch(console.error);
+});
 
-  // Create a draggable marker for home location
-  var homeMarker = L.marker(mapCenter, { draggable: true }).addTo(map);
-  homeMarker.bindPopup("Drag me to set your home location.").openPopup();
+// Create emoji markers for transit vehicles
+var busIcon = L.divIcon({ html: '🚌', className: 'emoji-icon', iconSize: [30, 30] });
+var trainIcon = L.divIcon({ html: '🚆', className: 'emoji-icon', iconSize: [30, 30] });
 
-  // Update home location on marker dragend event
-  homeMarker.on('dragend', function(e) {
-    var newPos = e.target.getLatLng();
-    fetch('/api/set_home', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat: newPos.lat, lng: newPos.lng })
-    })
-    .then(response => response.json())
-    .then(data => {
-      alert(data.message);
-      // Optionally update the popup message or UI to reflect the change.
-    })
-    .catch(console.error);
-  });
+// Layer groups for transit markers
+var busLayer = L.layerGroup();
+var trainLayer = L.layerGroup();
 
-  // Pass user home location as JSON to JS
-  var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
-  
-  // Default center if not set
-  var defaultCenter = [41.8781, -87.6298];
-  var mapCenter = (userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
-
-  // Initialize the map
-  var map = L.map('map').setView(mapCenter, 13);
-  L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
-    attribution: 'Map tiles by Stamen Design',
-    maxZoom: 18
-  }).addTo(map);
-
-  // Use emoji markers with divIcon for a simpler, prettier look.
-  var busIcon = L.divIcon({ html: '🚌', className: 'emoji-icon', iconSize: [30, 30] });
-  var trainIcon = L.divIcon({ html: '🚆', className: 'emoji-icon', iconSize: [30, 30] });
-
-  // Layer groups
-  var busLayer = L.layerGroup();
-  var trainLayer = L.layerGroup();
-
-  // Fetch and display bus data
-  fetch('/api/realtime?type=bus')
-    .then(response => response.json())
-    .then(data => {
-      data.forEach(function(item) {
-        L.marker([item.lat, item.lng], { icon: busIcon })
-          .bindPopup("<strong>Bus " + item.line + "</strong>")
-          .addTo(busLayer);
-      });
+// Fetch and display bus data
+fetch('/api/realtime?type=bus')
+  .then(response => response.json())
+  .then(data => {
+    data.forEach(function(item) {
+      L.marker([item.lat, item.lng], { icon: busIcon })
+        .bindPopup("<strong>Bus " + item.line + "</strong>")
+        .addTo(busLayer);
     });
+  });
 
-  // Fetch and display train data
-  fetch('/api/realtime?type=train')
-    .then(response => response.json())
-    .then(data => {
-      data.forEach(function(item) {
-        L.marker([item.lat, item.lng], { icon: trainIcon })
-          .bindPopup("<strong>Train " + item.line + "</strong>")
-          .addTo(trainLayer);
-      });
+// Fetch and display train data
+fetch('/api/realtime?type=train')
+  .then(response => response.json())
+  .then(data => {
+    data.forEach(function(item) {
+      L.marker([item.lat, item.lng], { icon: trainIcon })
+        .bindPopup("<strong>Train " + item.line + "</strong>")
+        .addTo(trainLayer);
     });
-
-  // Add layers to the map
-  var overlays = { "Buses": busLayer, "Trains": trainLayer };
-  L.control.layers(null, overlays).addTo(map);
-  busLayer.addTo(map);
-  trainLayer.addTo(map);
-
-  // Home Location Form Submission
-  document.getElementById('homeForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var lat = document.getElementById('homeLat').value;
-    var lng = document.getElementById('homeLng').value;
-    fetch('/api/set_home', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat: lat, lng: lng })
-    })
-    .then(response => response.json())
-    .then(function(data) {
-      alert(data.message);
-      location.reload();
-    })
-    .catch(console.error);
   });
 
-  // Add Favorite Line Form Submission
-  document.getElementById('lineForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var line = document.getElementById('lineInput').value;
-    fetch('/api/add_favorite', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ line: line })
-    })
-    .then(response => response.json())
-    .then(function(data) {
-      if (data.status === 'success') {
-        alert('Favorite added');
-        location.reload();
-      } else {
-        alert(data.message);
-      }
-    })
-    .catch(console.error);
-  });
+// Add layers control and default layers to map
+var overlays = { "Buses": busLayer, "Trains": trainLayer };
+L.control.layers(null, overlays).addTo(map);
+busLayer.addTo(map);
+trainLayer.addTo(map);
 
-  // Notification Settings Form Submission
-  document.getElementById('notificationForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var time = document.getElementById('notificationTime').value;
-    fetch('/api/set_notification', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        notification_settings: { time: time }
-      })
-    })
-    .then(response => response.json())
-    .then(function(data) {
-      alert(data.message);
-      location.reload();
-    })
-    .catch(console.error);
-  });
-
-  // Remove Favorite Function
-  function removeFavorite(line) {
-    fetch('/api/remove_favorite', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ line: line })
-    })
-    .then(response => response.json())
-    .then(function(data) {
-      if (data.status === 'success') {
-        alert('Favorite removed');
-        location.reload();
-      } else {
-        alert(data.message);
-      }
-    })
-    .catch(console.error);
+map.on('zoomend', function() {
+  var currentZoom = map.getZoom();
+  if (currentZoom >= 15) {
+    map.addLayer(detailedMarkers);
+  } else {
+    map.removeLayer(detailedMarkers);
   }
-</script>
-<script>
+});
+
+// Draw a sample transit route (polyline) with custom styling
+var sampleRoute = [
+  [41.881, -87.627],
+  [41.882, -87.630],
+  [41.883, -87.635],
+  [41.885, -87.640]
+];
+var routeStyle = { color: '#FF5733', weight: 4, dashArray: '5, 10' };
+L.polyline(sampleRoute, routeStyle).addTo(map);
+
+// Function to update GTFS shapes based on viewport
+function updateShapes() {
+  var bounds = map.getBounds();
+  var sw = bounds.getSouthWest();
+  var ne = bounds.getNorthEast();
+
+  fetch(`/api/gtfs_shapes?sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`)
+    .then(response => response.json())
+    .then(data => {
+      // For production, store and remove previous shape layers before adding new ones.
+      Object.keys(data).forEach(function(shapeId) {
+        var points = data[shapeId].map(pt => [pt.lat, pt.lon]);
+        L.polyline(points, { color: 'black', weight: 4, opacity: 1 }).addTo(map);
+      });
+    })
+    .catch(console.error);
+}
+
+// Update shapes on map moveend
+map.on('moveend', updateShapes);
+
+// Handle form submissions and search functionality
+document.getElementById('homeForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var lat = document.getElementById('homeLat').value;
+  var lng = document.getElementById('homeLng').value;
+  fetch('/api/set_home', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat: lat, lng: lng })
+  })
+  .then(response => response.json())
+  .then(data => { alert(data.message); location.reload(); })
+  .catch(console.error);
+});
+
+document.getElementById('lineForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var line = document.getElementById('lineInput').value;
+  fetch('/api/add_favorite', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ line: line })
+  })
+  .then(response => response.json())
+  .then(function(data) {
+    if (data.status === 'success') {
+      alert('Favorite added'); location.reload();
+    } else {
+      alert(data.message);
+    }
+  })
+  .catch(console.error);
+});
+
+document.getElementById('notificationForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var time = document.getElementById('notificationTime').value;
+  fetch('/api/set_notification', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ notification_settings: { time: time } })
+  })
+  .then(response => response.json())
+  .then(function(data) { alert(data.message); location.reload(); })
+  .catch(console.error);
+});
+
+function removeFavorite(line) {
+  fetch('/api/remove_favorite', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ line: line })
+  })
+  .then(response => response.json())
+  .then(function(data) {
+    if (data.status === 'success') {
+      alert('Favorite removed'); location.reload();
+    } else {
+      alert(data.message);
+    }
+  })
+  .catch(console.error);
+}
+
 document.getElementById('searchRoutes').addEventListener('click', function() {
   var query = document.getElementById('routeSearch').value;
-  // Make sure we have the user's home coordinates
-  var coords = (userHome.lat && userHome.lng) ? { lat: userHome.lat, lng: userHome.lng } : { lat: defaultCenter[0], lng: defaultCenter[1] };
+  var coords = (userHome && userHome.lat && userHome.lng) ? { lat: userHome.lat, lng: userHome.lng } : { lat: defaultCenter[0], lng: defaultCenter[1] };
   fetch(`/api/search_routes?lat=${coords.lat}&lng=${coords.lng}&q=${query}`)
     .then(response => response.json())
-    .then(data => {
+    .then(function(data) {
       var resultsList = document.getElementById('searchResults');
       resultsList.innerHTML = '';
-      if(data.length) {
-        data.forEach(route => {
+      if (data.length) {
+        data.forEach(function(route) {
           var li = document.createElement('li');
           li.className = 'list-group-item';
           li.textContent = route.name + ' (' + route.distance.toFixed(2) + ' miles)';
-          // You can also add a button to add the route as a favorite:
           var addBtn = document.createElement('button');
           addBtn.className = 'btn btn-sm btn-success float-end';
           addBtn.textContent = 'Add';
@@ -353,10 +354,7 @@ document.getElementById('searchRoutes').addEventListener('click', function() {
               body: JSON.stringify({ line: route.name })
             })
             .then(resp => resp.json())
-            .then(res => {
-              alert(res.message);
-              location.reload();
-            })
+            .then(function(res) { alert(res.message); location.reload(); })
             .catch(console.error);
           };
           li.appendChild(addBtn);

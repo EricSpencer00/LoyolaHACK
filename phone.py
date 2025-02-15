@@ -30,6 +30,9 @@ def send_sms_via_email(to_number, carrier, subject, body, app_config):
         msg["Subject"] = subject
         msg.attach(MIMEText(body, 'plain'))
 
+        print(f"Connecting to {app_config.get('MAIL_SERVER')}:{app_config.get('MAIL_PORT')}...")
+        print(f"Logging in as {app_config.get('MAIL_USERNAME')}...")
+
         server = smtplib.SMTP(app_config.get("MAIL_SERVER"), app_config.get("MAIL_PORT"))
         server.starttls()
         server.login(app_config.get("MAIL_USERNAME"), app_config.get("MAIL_PASSWORD"))
