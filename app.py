@@ -17,7 +17,9 @@ app.secret_key = os.urandom(24)
 # Configure mail settings (ensure your env variables are set)
 app.config.update({
     "MAIL_SERVER": "smtp.gmail.com",
-    "MAIL_PORT": 587,
+    "MAIL_PORT": 465,  # SSL Port
+    "MAIL_USE_TLS": False,
+    "MAIL_USE_SSL": True,
     "MAIL_USERNAME": os.getenv('MAIL_USERNAME'),
     "MAIL_PASSWORD": os.getenv('MAIL_PASSWORD'),
     "MAIL_DEFAULT_SENDER": os.getenv('MAIL_DEFAULT_SENDER')
