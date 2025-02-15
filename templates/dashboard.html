@@ -3,54 +3,66 @@
 
 {% block content %}
 <div class="container my-4">
-
-  <!-- User Info Card -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h3 class="card-title">My Transit Dashboard</h3>
-      <p class="card-text">
-        Welcome, {% if user.email %}{{ user.email }}{% else %}{{ user.phone_number }}{% endif %}!
-      </p>
-      <p class="card-text">
-        Home Location:
-        {% if user.home_lat and user.home_lng %}
-          ({{ user.home_lat }}, {{ user.home_lng }})
-        {% else %}
-          <span class="text-danger">Not set</span>
-        {% endif %}
-      </p>
-      <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#homeModal">
-        Set Home Location
-      </a>
+  <div class="row">
+    <!-- User Info & Home Location Card -->
+    <div class="col-md-6 mb-4">
+      <div class="card h-100">
+        <div class="card-header">
+          My Transit Dashboard
+        </div>
+        <div class="card-body">
+          <h4 class="card-title">
+            Welcome, {% if user.email %}{{ user.email }}{% else %}{{ user.phone_number }}{% endif %}
+          </h4>
+          <p class="card-text">
+            Home Location:
+            {% if user.home_lat and user.home_lng %}
+              ({{ user.home_lat }}, {{ user.home_lng }})
+            {% else %}
+              <span class="text-danger">Not set</span>
+            {% endif %}
+          </p>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#homeModal">
+            Set Home Location
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
-
-  <!-- Favorite Lines Card -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h4 class="card-title">Favorite Lines</h4>
-      <ul class="list-group">
-        {% for line in favorite_lines %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            {{ line }}
-            <button class="btn btn-sm btn-outline-danger" onclick="removeFavorite('{{ line }}')">
-              Remove
-            </button>
-          </li>
-        {% else %}
-          <li class="list-group-item">No favorite lines yet.</li>
-        {% endfor %}
-      </ul>
-      <button class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#lineModal">
-        Add Favorite Line
-      </button>
+    <!-- Favorite Lines Card -->
+    <div class="col-md-6 mb-4">
+      <div class="card h-100">
+        <div class="card-header">
+          Favorite Lines
+        </div>
+        <div class="card-body">
+          <ul class="list-group">
+            {% if favorite_lines %}
+              {% for line in favorite_lines %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  {{ line }}
+                  <button class="btn btn-sm btn-outline-danger" onclick="removeFavorite('{{ line }}')">
+                    Remove
+                  </button>
+                </li>
+              {% endfor %}
+            {% else %}
+              <li class="list-group-item">No favorite lines yet.</li>
+            {% endif %}
+          </ul>
+          <button class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#lineModal">
+            Add Favorite Line
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Notification Settings Card -->
   <div class="card mb-4">
+    <div class="card-header">
+      Notification Settings
+    </div>
     <div class="card-body">
-      <h4 class="card-title">Notification Settings</h4>
       <p class="card-text">
         Set alerts for your favorite lines within specific time frames.
       </p>
@@ -60,7 +72,7 @@
     </div>
   </div>
 
-  <!-- Map Card -->
+  <!-- Live Transit Map Card -->
   <div class="card">
     <div class="card-header">
       Live Transit Map
@@ -69,24 +81,94 @@
       <div id="map" style="height: 400px;"></div>
     </div>
   </div>
-
 </div>
 
-<!-- Modal for Contact Information (Phone & Carrier) -->
+<!-- Modals -->
+
+<!-- Home Location Modal -->
+<div class="modal fade" id="homeModal" tabindex="-1" aria-labelledby="homeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="homeForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="homeModalLabel">Set Home Location</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="homeLat" class="form-label">Latitude</label>
+          <input type="text" class="form-control" id="homeLat" placeholder="e.g., 41.8781">
+        </div>
+        <div class="mb-3">
+          <label for="homeLng" class="form-label">Longitude</label>
+          <input type="text" class="form-control" id="homeLng" placeholder="e.g., -87.6298">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Home Location</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Favorite Line Modal -->
+<div class="modal fade" id="lineModal" tabindex="-1" aria-labelledby="lineModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="lineForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="lineModalLabel">Add Favorite Line</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="lineInput" class="form-label">Transit Line</label>
+          <input type="text" class="form-control" id="lineInput" placeholder="e.g., Blue Line">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-success">Add Favorite</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Notification Settings Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="notificationForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="notificationModalLabel">Notification Settings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="notificationTime" class="form-label">Notify me (minutes before transit)</label>
+          <input type="number" class="form-control" id="notificationTime" placeholder="e.g., 10">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-warning">Save Notifications</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Contact Information Modal (shown if missing phone/carrier) -->
+{% if not user.phone_number or not user.carrier %}
 <div class="modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <form id="contactForm" class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="contactModalLabel">Update Contact Information</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <!-- Phone Number Input -->
         <div class="mb-3">
           <label for="phoneNumber" class="form-label">Phone Number (digits only)</label>
           <input type="text" class="form-control" id="phoneNumber" placeholder="e.g., 3125551234">
         </div>
-        <!-- Carrier Selection -->
         <div class="mb-3">
           <label for="carrier" class="form-label">Carrier</label>
           <select class="form-select" id="carrier">
@@ -106,31 +188,128 @@
     </form>
   </div>
 </div>
+{% endif %}
+{% endblock %}
 
-<!-- Additional modals for setting home location, adding favorite lines, and managing notifications can be defined similarly -->
+{% block scripts %}
+<script>
+  // Safely output user's home location as JSON
+  var userHome = JSON.parse('{{ {"lat": user.home_lat, "lng": user.home_lng} | tojson | safe }}');
+  var defaultCenter = [41.8781, -87.6298];
+  var mapCenter = (userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
+
+  // Initialize a simplified Leaflet map with Stamen Toner Lite tiles
+  var map = L.map('map').setView(mapCenter, 13);
+  L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
+    attribution: 'Map tiles by Stamen Design',
+    maxZoom: 18
+  }).addTo(map);
+
+  // Create layer groups for buses and trains
+  var busLayer = L.layerGroup();
+  var trainLayer = L.layerGroup();
+
+  // Fetch and display bus data within user's area
+  fetch('/api/realtime?type=bus')
+    .then(response => response.json())
+    .then(data => {
+      data.forEach(function(item) {
+        L.marker([item.lat, item.lng], {
+          icon: L.icon({
+            iconUrl: '/static/images/bus-icon.png',
+            iconSize: [25, 25]
+          })
+        }).bindPopup("<strong>Bus " + item.line + "</strong>").addTo(busLayer);
+      });
+    });
+
+  // Fetch and display train data
+  fetch('/api/realtime?type=train')
+    .then(response => response.json())
+    .then(data => {
+      data.forEach(function(item) {
+        L.marker([item.lat, item.lng], {
+          icon: L.icon({
+            iconUrl: '/static/images/train-icon.png',
+            iconSize: [25, 25]
+          })
+        }).bindPopup("<strong>Train " + item.line + "</strong>").addTo(trainLayer);
+      });
+    });
+
+  // Add overlay control and default layers to the map
+  var overlays = { "Buses": busLayer, "Trains": trainLayer };
+  L.control.layers(null, overlays).addTo(map);
+  busLayer.addTo(map);
+  trainLayer.addTo(map);
+
+  // Home Location Form Submission
+  document.getElementById('homeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var lat = document.getElementById('homeLat').value;
+    var lng = document.getElementById('homeLng').value;
+    fetch('/api/set_home', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: lat, lng: lng })
+    })
+    .then(response => response.json())
+    .then(function(data) {
+      alert(data.message);
+      location.reload();
+    })
+    .catch(console.error);
+  });
+
+  // Add Favorite Line Form Submission
+  document.getElementById('lineForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var line = document.getElementById('lineInput').value;
+    fetch('/api/add_favorite', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ line: line })
+    })
+    .then(response => response.json())
+    .then(function(data) {
+      if (data.status === 'success') {
+        alert('Favorite added');
+        location.reload();
+      } else {
+        alert(data.message);
+      }
+    })
+    .catch(console.error);
+  });
+
+  // Notification Settings Form Submission
+  document.getElementById('notificationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var time = document.getElementById('notificationTime').value;
+    fetch('/api/set_notification', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        phone_number: "{{ user.phone_number }}",
+        notification_settings: { time: time }
+      })
+    })
+    .then(response => response.json())
+    .then(function(data) {
+      alert(data.message);
+      location.reload();
+    })
+    .catch(console.error);
+  });
+</script>
 
 {% if not user.phone_number or not user.carrier %}
 <script>
-  // Automatically show the contact modal if phone or carrier info is missing.
-  document.addEventListener("DOMContentLoaded", function() {
-    var contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
-    contactModal.show();
-  });
-</script>
-{% endif %}
-{% endblock %}
-{% block scripts %}
-<script>
-  document.getElementById('notification').addEventListener('click', function() {
-    var notificationModalEl = document.getElementById('notificationModal');
-    var modal = bootstrap.Modal.getInstance(notificationModalEl);
-    modal.show();
-  });
-  // Handle submission of the contact form.
+  // Contact Form Submission & display modal if contact info is missing
   document.getElementById('contactForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    const phone = document.getElementById('phoneNumber').value;
-    const carrier = document.getElementById('carrier').value;
+    var phone = document.getElementById('phoneNumber').value;
+    var carrier = document.getElementById('carrier').value;
     fetch('/api/set_notification', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -142,17 +321,24 @@
       })
     })
     .then(response => response.json())
-    .then(data => {
+    .then(function(data) {
       alert(data.message);
       var contactModalEl = document.getElementById('contactModal');
       var modal = bootstrap.Modal.getInstance(contactModalEl);
       modal.hide();
-      // Optionally reload the page to update displayed info.
       location.reload();
     })
     .catch(console.error);
   });
 
+  document.addEventListener("DOMContentLoaded", function() {
+    var contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
+    contactModal.show();
+  });
+</script>
+{% endif %}
+
+<script>
   // Function to remove a favorite transit line.
   function removeFavorite(line) {
     fetch('/api/remove_favorite', {
@@ -161,10 +347,10 @@
       body: JSON.stringify({ line: line })
     })
     .then(response => response.json())
-    .then(data => {
+    .then(function(data) {
       if (data.status === 'success') {
         alert('Favorite removed');
-        location.reload(); // Refresh page to update the favorites list.
+        location.reload();
       } else {
         alert(data.message);
       }

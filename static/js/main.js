@@ -1,16 +1,26 @@
-// Initialize the Leaflet map
-var map = L.map('map').setView([41.8781, -87.6298], 13);
+// static/js/main.js
 
-// Add base tile layer from OpenStreetMap
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
+// Set default center if no home coordinates (e.g., Chicago center)
+var defaultCenter = [41.8781, -87.6298];
+// Use passed-in home coordinates if available
+var mapCenter = (typeof userHome !== 'undefined' && userHome.lat && userHome.lng) 
+                ? [userHome.lat, userHome.lng] 
+                : defaultCenter;
+
+// Initialize the Leaflet map
+var map = L.map('map').setView(mapCenter, 13);
+
+// Use a simpler tile layer (Stamen Toner Lite)
+L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
+    attribution: 'Map tiles by Stamen Design',
+    maxZoom: 18
 }).addTo(map);
 
 // Create layer groups for buses and trains
 var busLayer = L.layerGroup();
 var trainLayer = L.layerGroup();
 
-// Fetch and display bus data (dummy API endpoint)
+// Fetch and display bus data
 fetch('/api/realtime?type=bus')
     .then(response => response.json())
     .then(data => {
