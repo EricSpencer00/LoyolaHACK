@@ -154,7 +154,7 @@ def verify_otp():
     data = request.get_json()
     phone_number = data.get("phone_number")
     otp = data.get("otp")
-    if OTPS.get(phone_number) == otp or otp == "123456":
+    if OTPS.get(phone_number) == otp:
         session["authenticated"] = True
         session["phone_number"] = phone_number
         user = User.query.filter_by(phone_number=phone_number).first()

@@ -227,15 +227,6 @@ L.control.layers(null, overlays).addTo(map);
 busLayer.addTo(map);
 trainLayer.addTo(map);
 
-map.on('zoomend', function() {
-  var currentZoom = map.getZoom();
-  if (currentZoom >= 15) {
-    map.addLayer(detailedMarkers);
-  } else {
-    map.removeLayer(detailedMarkers);
-  }
-});
-
 // Draw a sample transit route (polyline) with custom styling
 var sampleRoute = [
   [41.881, -87.627],
