@@ -42,6 +42,7 @@ celery = make_celery(app)
 def login():
     data = request.get_json()
     token = data.get("token")
+    print("Received data from frontend:", data)  # <-- Add this line
     try:
         decoded_token = firebase_auth.verify_id_token(token)
         email = decoded_token.get("email")

@@ -19,14 +19,12 @@
 </div>
 
 <script>
-  // Firebase is available from the head.
   const auth = firebase.auth();
   const provider = new firebase.auth.GoogleAuthProvider();
 
   document.getElementById('google-signin').addEventListener('click', () => {
     auth.signInWithPopup(provider)
       .then((result) => {
-        // Get the token and send it to your backend for verification/storage
         result.user.getIdToken().then(token => {
           fetch('/api/login', {
             method: 'POST',
@@ -34,7 +32,6 @@
             body: JSON.stringify({ token })
           }).then(response => {
             if (response.ok) {
-              // After successful login, redirect to the dashboard
               window.location.href = "/dashboard";
             }
           });
@@ -43,4 +40,5 @@
       .catch((error) => console.error('Google Sign-In error:', error));
   });
 </script>
+
 {% endblock %}
