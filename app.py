@@ -81,6 +81,10 @@ shapes = {}  # key: shape_id, value: list of point dictionaries
 with open('./google_transit/shapes.txt', newline='') as f:
     reader = csv.DictReader(f)
     for row in reader:
+        if 'shape_id' not in row:
+            print("Missing shape_id in row:", row)
+            continue  # Skip this row if shape_id is missing
+
         shape_id = row['shape_id']
         point = {
             'lat': float(row['shape_pt_lat']),
@@ -89,9 +93,6 @@ with open('./google_transit/shapes.txt', newline='') as f:
             'dist': float(row['shape_dist_traveled']) if row['shape_dist_traveled'] else None
         }
         shapes.setdefault(shape_id, []).append(point)
-
-for shape_id in shapes:
-    shapes[shape_id].sort(key=lambda p: p['seq'])
 
 @app.route('/api/gtfs_shapes', methods=['GET'])
 def gtfs_shapes():
