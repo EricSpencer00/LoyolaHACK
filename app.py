@@ -7,6 +7,9 @@ import csv
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from phone import send_sms_via_email
 from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -19,6 +22,9 @@ app.config.update({
     "MAIL_PASSWORD": os.getenv('MAIL_PASSWORD'),
     "MAIL_DEFAULT_SENDER": os.getenv('MAIL_DEFAULT_SENDER')
 })
+print("MAIL_USERNAME:", os.getenv('MAIL_USERNAME'))
+print("MAIL_PASSWORD:", os.getenv('MAIL_PASSWORD'))
+print("MAIL_DEFAULT_SENDER:", os.getenv('MAIL_DEFAULT_SENDER'))
 
 # Configure SQLite database for demonstration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cta_tracker.db'
