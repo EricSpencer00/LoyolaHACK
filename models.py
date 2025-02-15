@@ -5,10 +5,9 @@ import json
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    favorite_routes = db.Column(db.Text)  # Could be stored as a JSON string with list of route IDs
-    home_lat = db.Column(db.Float, nullable=True)
-    home_lng = db.Column(db.Float, nullable=True)
-    notification_settings = db.Column(db.Text, nullable=True)  # JSON structure for notification prefs
+    phone_number = db.Column(db.String(20))  # Store the user's phone number
+    carrier = db.Column(db.String(50))       # Store the user's carrier
+    notification_settings = db.Column(db.Text)
 
     def __repr__(self):
         return f'<User {self.email}>'
