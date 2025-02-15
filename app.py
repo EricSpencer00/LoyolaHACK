@@ -22,9 +22,6 @@ app.config.update({
     "MAIL_PASSWORD": os.getenv('MAIL_PASSWORD'),
     "MAIL_DEFAULT_SENDER": os.getenv('MAIL_DEFAULT_SENDER')
 })
-print("MAIL_USERNAME:", os.getenv('MAIL_USERNAME'))
-print("MAIL_PASSWORD:", os.getenv('MAIL_PASSWORD'))
-print("MAIL_DEFAULT_SENDER:", os.getenv('MAIL_DEFAULT_SENDER'))
 
 # Configure SQLite database for demonstration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cta_tracker.db'
