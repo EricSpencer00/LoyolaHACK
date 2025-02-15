@@ -77,11 +77,10 @@ def dashboard():
 # API endpoint for real-time transit data (dummy implementation)
 @app.route('/api/realtime', methods=['GET'])
 def get_realtime():
-    # Use query parameters to get the user's location (if provided)
+    type_filter = request.args.get('type')
     user_lat = request.args.get('lat', type=float, default=41.8781)
     user_lng = request.args.get('lng', type=float, default=-87.6298)
     
-    # Replace with real CTA API calls and filtering by user's location (Chicago area)
     dummy_data = [
         {
             "id": 1,
@@ -98,6 +97,8 @@ def get_realtime():
             "line": "Red"
         }
     ]
+    if type_filter:
+        dummy_data = [d for d in dummy_data if d["type"] == type_filter]
     return jsonify(dummy_data)
 
 # Set user's home location (latitude and longitude)
