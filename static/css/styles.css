@@ -20,3 +20,7 @@ header, footer {
 #predictions {
     padding: 1rem;
 }
+
+#predictions h2 {
+    margin-top: 0;
+}

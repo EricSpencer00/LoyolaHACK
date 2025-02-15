@@ -1,5 +1,31 @@
 {% extends 'base.html' %}
 
+<button id="google-signin">Sign In with Google</button>
+
+<script>
+  const auth = firebase.auth();
+  const provider = new firebase.auth.GoogleAuthProvider();
+
+  document.getElementById('google-signin').addEventListener('click', () => {
+    auth.signInWithPopup(provider)
+      .then((result) => {
+        // Get the token and send it to your backend for verification/storage
+        result.user.getIdToken().then(token => {
+          fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+          }).then(response => {
+            if (response.ok) {
+              location.reload();
+            }
+          });
+        });
+      })
+      .catch((error) => console.error('Google Sign-In error:', error));
+  });
+</script>
+
 {% block head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 {% endblock %}

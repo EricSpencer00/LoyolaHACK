@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>My Transit Dashboard</h2>
+<div id="user-info">
+  <p>Welcome, {{ user.email }}!</p>
+  <p>Home Location: {% if user.home_lat %} ({{ user.home_lat }}, {{ user.home_lng }}) {% else %} Not set {% endif %}</p>
+  <!-- Add a form or map to update the home location -->
+</div>
+<div id="favorite-lines">
+  <h3>Favorite Lines</h3>
+  <ul>
+    {% for line in favorite_lines %}
+    <li>{{ line }} <button onclick="removeFavorite('{{ line }}')">Remove</button></li>
+    {% endfor %}
+  </ul>
+  <!-- Add a form to add a new favorite line -->
+</div>
+<div id="notification-settings">
+  <h3>Notification Settings</h3>
+  <p>Set alerts for your favorite lines within specific time ranges:</p>
+  <!-- Form to add/update notification preferences -->
+</div>
+{% endblock %}

@@ -1,14 +1,18 @@
 from app import db
 from datetime import datetime
+import json
 
-# Example User model (expand with Flask-Login as needed)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    favorite_routes = db.Column(db.Text)
+    favorite_routes = db.Column(db.Text)  # Could be stored as a JSON string with list of route IDs
+    home_lat = db.Column(db.Float, nullable=True)
+    home_lng = db.Column(db.Float, nullable=True)
+    notification_settings = db.Column(db.Text, nullable=True)  # JSON structure for notification prefs
 
     def __repr__(self):
-        return '<User {}>'.format(self.email)
+        return f'<User {self.email}>'
+
 
 # Example TransitData model for storing historical data
 class TransitData(db.Model):
