@@ -17,7 +17,7 @@ fetch('/api/realtime?type=bus')
         data.forEach(bus => {
             L.marker([bus.lat, bus.lng], {
                 icon: L.icon({
-                    iconUrl: '/static/images/bus-icon.png', // Update with your correct path
+                    iconUrl: '/static/images/bus-icon.png',
                     iconSize: [25, 25]
                 })
             })
