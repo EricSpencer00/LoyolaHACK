@@ -69,6 +69,11 @@ def index():
     }
     return render_template('index.html')
 
+@app.route('/dashboard')
+def dashboard():
+    user = User
+    return render_template('dashboard.html')
+
 # API endpoint for real-time transit data (dummy implementation)
 @app.route('/api/realtime', methods=['GET'])
 def get_realtime():
