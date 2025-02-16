@@ -282,6 +282,6 @@ def realtime():
 
 if __name__ == "__main__":
     # Uncomment the lines below on first run to create the tables:
-    # with app.app_context():
-    #     db.create_all()
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
