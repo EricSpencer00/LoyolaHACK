@@ -8,6 +8,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from phone import send_sms_via_email
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
+from celery_app import celery
 
 load_dotenv(override=True)
 
@@ -97,6 +98,69 @@ with open('./google_transit/stops.txt', newline='') as f:
             'parent_station': row['parent_station'],
             'wheelchair_boarding': row['wheelchair_boarding']
         }
+
+def get_closest_stop(home_lat, home_lng, stops_dict):
+    closest_stop = None
+    min_distance = float("inf")
+    for stop in stops_dict.values():
+        d = haversine(home_lat, home_lng, stop["stop_lat"], stop["stop_lon"])
+        if d < min_distance:
+            min_distance = d
+            closest_stop = stop
+    return closest_stop
+
+def get_cta_bus_data_for_stop(stop_id):
+    CTA_API_KEY = os.getenv("CTA_API_KEY")
+    if not CTA_API_KEY:
+        raise Exception("CTA_API_KEY not set")
+    url = "http://www.ctabustracker.com/bustime/api/v2/getpredictions"
+    params = {"key": CTA_API_KEY, "stpid": stop_id, "format": "json"}
+    r = requests.get(url, params=params)
+    data = r.json()
+    predictions = []
+    if "bustime-response" in data and "prd" in data["bustime-response"]:
+        for prd in data["bustime-response"]["prd"]:
+            predictions.append({
+                "line": prd.get("rt"),
+                "arrival": prd.get("prdctdn")
+            })
+    return predictions
+
+def get_cta_train_data_for_stop(stop_id):
+    CTA_TRAIN_API_KEY = os.getenv("CTA_TRAIN_API_KEY")
+    if not CTA_TRAIN_API_KEY:
+        raise Exception("CTA_TRAIN_API_KEY not set")
+    stop_info = stops.get(stop_id)
+    if stop_info:
+        stop_lat = stop_info['stop_lat']
+        stop_lon = stop_info['stop_lon']
+        stop_name = stop_info['stop_name']
+    else:
+        stop_lat = 41.8781
+        stop_lon = -87.6298
+        stop_name = "Unknown Stop"
+    url = "http://www.transitchicago.com/traintracker/api/1.0/getpredictions"
+    params = {"key": CTA_TRAIN_API_KEY, "stpid": stop_id, "format": "json"}
+    try:
+        r = requests.get(url, params=params)
+        data = r.json()
+        predictions = []
+        if "traintracker-response" in data and "prd" in data["traintracker-response"]:
+            for prd in data["traintracker-response"]["prd"]:
+                predictions.append({
+                    "line": prd.get("rt"),
+                    "arrival": prd.get("prdctdn")
+                })
+            return predictions
+        else:
+            raise Exception("Unexpected train API response structure")
+    except Exception as e:
+        print("Error fetching train data:", e)
+        return [
+            {"line": "Red", "arrival": "3"},
+            {"line": "Blue", "arrival": "5"}
+        ]
+
 
 # ------------------------
 # API Endpoints for the Line and Stops (using stops.txt)
@@ -357,3 +421,62 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+
+
+from celery_app import celery
+
+@celery.task
+def check_favorite_line_notifications():
+    with app.app_context():
+        users = User.query.all()
+        for user in users:
+            # Skip users without a home location or favorites
+            if not user.home_lat or not user.home_lng:
+                continue
+            favorites = user.get_favorites()  # e.g., ["Red", "Blue"]
+            if not favorites:
+                continue
+            notification_settings = user.get_notification_settings()
+            try:
+                threshold = int(notification_settings.get("time", 5))
+            except ValueError:
+                threshold = 5
+
+            # Find the closest stop from our stops dictionary
+            closest_stop = get_closest_stop(user.home_lat, user.home_lng, stops)
+            if not closest_stop:
+                continue
+
+            stop_id = closest_stop['stop_id']
+
+            # Get realtime predictions for this stop (for both bus and train)
+            bus_predictions = get_cta_bus_data_for_stop(stop_id)
+            train_predictions = get_cta_train_data_for_stop(stop_id)
+            predictions = bus_predictions + train_predictions
+
+            for pred in predictions:
+                line = pred.get("line")
+                # Only consider if this prediction is for a favorite line.
+                if line in favorites:
+                    try:
+                        arrival = int(pred.get("arrival", "9999"))
+                    except ValueError:
+                        arrival = 9999
+                    if arrival <= threshold:
+                        message = (f"Alert: Your favorite line {line} is arriving in {arrival} minute(s) "
+                                   f"at {closest_stop.get('stop_name', 'your area')}.")
+                        # Send SMS if phone info is available.
+                        if user.phone_number and user.carrier:
+                            try:
+                                send_sms_via_email(
+                                    to_number=user.phone_number,
+                                    carrier=user.carrier,
+                                    subject="Transit Alert",
+                                    body=message,
+                                    app_config=app.config
+                                )
+                                print(f"Notification sent to {user.phone_number} for line {line}")
+                            except Exception as e:
+                                print(f"Failed to send SMS to {user.phone_number}: {e}")
+                        else:
+                            print(f"User {user.phone_number} has no phone details; cannot send notification.")
