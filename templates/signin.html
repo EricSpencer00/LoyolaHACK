@@ -9,9 +9,9 @@
       <label for="phoneNumber" class="form-label">Phone Number (e.g., 3125551234)</label>
       <input type="text" id="phoneNumber" class="form-control" placeholder="3125551234">
     </div>
-    <div class="mb-3">
-      <label for="carrier" class="form-label">Carrier</label>
-      <select id="carrier" class="form-select">
+    <!-- <div class="mb-3">
+      <label for="carrier" class="form-label">Carrier</label> -->
+      <!-- <select id="carrier" class="form-select">
         <option value="">Select your carrier</option>
         <option value="att">AT&amp;T</option>
         <option value="tmobile">T-Mobile</option>
@@ -19,7 +19,7 @@
         <option value="sprint">Sprint</option>
         <option value="uscellular">US Cellular</option>
       </select>
-    </div>
+    </div> -->
     <button id="send-otp" class="btn btn-primary">Send OTP</button>
   </div>
 
@@ -35,9 +35,9 @@
 <script>
   document.getElementById('send-otp').addEventListener('click', () => {
     const phoneNumber = document.getElementById('phoneNumber').value;
-    const carrier = document.getElementById('carrier').value;
-    if (!phoneNumber || !carrier) {
-      alert('Please enter your phone number and select a carrier.');
+    // const carrier = document.getElementById('carrier').value;
+    if (!phoneNumber) {
+      alert('Please enter your phone number.');
       return;
     }
     fetch('/api/send_otp', {

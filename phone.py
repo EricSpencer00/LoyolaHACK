@@ -1,43 +1,21 @@
-import re
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# phone.py
+import os
+from twilio.rest import Client
 
-CARRIER_GATEWAYS = {
-    "att": "@txt.att.net",
-    "tmobile": "@tmomail.net",
-    "verizon": "@vtext.com",
-    "sprint": "@messaging.sprintpcs.com",
-    "uscellular": "@email.uscc.net"
-}
+def send_sms_via_twilio(to_number, body):
+    """Send SMS using Twilio."""
+    # Make sure these environment variables are set in your .env or hosting environment
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+    from_number = os.getenv("TWILIO_PHONE_NUMBER")
 
-def send_sms_via_email(to_number, carrier, subject, body, app_config):
-    try:
-        if carrier:
-            gateway = CARRIER_GATEWAYS.get(carrier.lower())
-            if not gateway:
-                raise ValueError("Invalid carrier provided.")
-            clean_number = re.sub(r'\D', '', to_number)
-            recipient = f"{clean_number}{gateway}"
-        else:
-            recipient = to_number
+    if not (account_sid and auth_token and from_number):
+        raise ValueError("Twilio environment variables are not set properly.")
 
-        print("Sending SMS to:", recipient)
-
-        msg = MIMEMultipart()
-        msg["From"] = app_config.get("MAIL_DEFAULT_SENDER")
-        msg["To"] = recipient
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, 'plain'))
-
-        print(f"Connecting to {app_config.get('MAIL_SERVER')}:{app_config.get('MAIL_PORT')}...")
-        print(f"Logging in as {app_config.get('MAIL_USERNAME')}...")
-
-        server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
-        server.login(app_config.get("MAIL_USERNAME"), app_config.get("MAIL_PASSWORD"))
-        server.sendmail(app_config.get("MAIL_DEFAULT_SENDER"), recipient, msg.as_string())
-        server.quit()
-        print(f"SMS (via email) sent to {recipient}")
-    except Exception as e:
-        print(f"Failed to send SMS: {e}")
-        raise
+    client = Client(account_sid, auth_token)
+    message = client.messages.create(
+        to=to_number,
+        from_=from_number,
+        body=body
+    )
+    return message.sid

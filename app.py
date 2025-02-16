@@ -5,7 +5,7 @@ import datetime
 import math
 import csv
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-from phone import send_sms_via_email
+from phone import send_sms_via_twilio
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
@@ -13,17 +13,6 @@ load_dotenv(override=True)
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
-
-# Configure mail settings (ensure your env variables are set)
-app.config.update({
-    "MAIL_SERVER": "smtp.gmail.com",
-    "MAIL_PORT": 465,  # SSL Port
-    "MAIL_USE_TLS": False,
-    "MAIL_USE_SSL": True,
-    "MAIL_USERNAME": os.getenv('MAIL_USERNAME'),
-    "MAIL_PASSWORD": os.getenv('MAIL_PASSWORD'),
-    "MAIL_DEFAULT_SENDER": os.getenv('MAIL_DEFAULT_SENDER')
-})
 
 # Configure SQLite database for demonstration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cta_tracker.db'
@@ -137,19 +126,19 @@ def dashboard():
 def send_otp():
     data = request.get_json()
     phone_number = data.get("phone_number")
-    carrier = data.get("carrier")
-    if not phone_number or not carrier:
-        return jsonify({"status": "error", "message": "Phone number and carrier required."})
+    carrier = data.get("carrier")  # Optional to keep if you still store it in the database
+
+    if not phone_number:
+        return jsonify({"status": "error", "message": "Phone number is required."})
     
     otp = generate_otp()
     OTPS[phone_number] = otp
+
     try:
-        send_sms_via_email(
-            to_number=phone_number,
-            carrier=carrier,
-            subject="Your OTP Code",
-            body=f"Your OTP is {otp}",
-            app_config=app.config
+        # Send OTP via Twilio
+        send_sms_via_twilio(
+            to_number=phone_number, 
+            body=f"Your OTP is {otp}"
         )
         return jsonify({"status": "success"})
     except Exception as e:
@@ -160,6 +149,8 @@ def verify_otp():
     data = request.get_json()
     phone_number = data.get("phone_number")
     otp = data.get("otp")
+    carrier = data.get("carrier")
+
     if OTPS.get(phone_number) == otp:
         session["authenticated"] = True
         session["phone_number"] = phone_number
@@ -167,7 +158,7 @@ def verify_otp():
         if not user:
             user = User(
                 phone_number=phone_number,
-                carrier=data.get("carrier"),
+                carrier=carrier,  # Optional if you still want to store it
                 home_lat=None,
                 home_lng=None,
                 favorite_lines=json.dumps([]),
@@ -178,7 +169,7 @@ def verify_otp():
         return jsonify({"status": "success"})
     else:
         return jsonify({"status": "error", "message": "Incorrect OTP."})
-
+    
 @app.route("/api/search_routes")
 def search_routes():
     lat = float(request.args.get("lat", 41.8781))
