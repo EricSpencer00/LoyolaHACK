@@ -9,6 +9,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from phone import send_sms_via_email
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
+import folium
 
 load_dotenv(override=True)
 
@@ -101,6 +102,57 @@ for shape_id in shapes:
     shapes[shape_id].sort(key=lambda p: p['seq'])
 
 # ------------------------
+# Load GTFS Stops Data
+# ------------------------
+stops = {}
+with open('./google_transit/stops.txt', newline='') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        stops[row['stop_id']] = {
+            'stop_code': row['stop_code'],
+            'stop_name': row['stop_name'],
+            'stop_desc': row['stop_desc'],
+            'stop_lat': float(row['stop_lat']),
+            'stop_lon': float(row['stop_lon']),
+            'location_type': row['location_type'],
+            'parent_station': row['parent_station'],
+            'wheelchair_boarding': row['wheelchair_boarding']
+        }
+
+
+# Create a map centered at a reasonable default (e.g., Chicago)
+m = folium.Map(location=[41.8781, -87.6298], zoom_start=12)
+
+# Loop over each shape and add it as a PolyLine to the map
+for shape_id, points in shapes.items():
+    # Convert each point to [latitude, longitude]
+    coords = [[p["lat"], p["lon"]] for p in points]
+    # Add a polyline for the shape. You can customize the color or add a tooltip.
+    folium.PolyLine(
+        coords,
+        color="blue",
+        weight=2.5,
+        opacity=1,
+        tooltip=f"Shape ID: {shape_id}"
+    ).add_to(m)
+
+# Save the map to an HTML file to view in your browser
+m.save("shapes_map.html")
+
+for shape_id, points in shapes.items():
+    coords = [[p["lat"], p["lon"]] for p in points]
+    folium.PolyLine(coords, color="blue", weight=2.5, opacity=1,
+                    tooltip=f"Shape ID: {shape_id}").add_to(m)
+    # Place a marker at the midpoint
+    mid_index = len(coords) // 2
+    folium.Marker(
+        location=coords[mid_index],
+        popup=f"Shape {shape_id} midpoint",
+        icon=folium.Icon(color='red', icon='info-sign')
+    ).add_to(m)
+
+
+# ------------------------
 # Load GTFS Routes Data
 # ------------------------
 def load_routes():
@@ -117,6 +169,12 @@ def load_routes():
     return routes
 
 routes_data = load_routes()
+
+
+
+
+
+
 
 # ------------------------
 # API Endpoints
@@ -187,16 +245,21 @@ def get_cta_train_data():
     if not CTA_TRAIN_API_KEY:
         raise Exception("CTA_TRAIN_API_KEY not set")
 
-    # Use user's home coordinates if available; otherwise, default values.
-    user = get_current_user()
-    if user and user.home_lat is not None and user.home_lng is not None:
-        home_lat = user.home_lat
-        home_lng = user.home_lng
+    # Get the station ID from the request (default to "1" since our stops file uses "1", "2", etc.)
+    station_id = request.args.get("station_id", "1")
+    
+    # Look up the stop data from stops.txt
+    stop_info = stops.get(station_id)
+    if stop_info:
+        stop_lat = stop_info['stop_lat']
+        stop_lon = stop_info['stop_lon']
+        stop_name = stop_info['stop_name']
     else:
-        home_lat = 41.880
-        home_lng = -87.630
+        # Fallback defaults if the station is not found in stops.txt
+        stop_lat = 41.8781
+        stop_lon = -87.6298
+        stop_name = "Unknown Stop"
 
-    station_id = request.args.get("station_id", "301")
     url = "http://www.transitchicago.com/traintracker/api/1.0/getpredictions"
     params = {"key": CTA_TRAIN_API_KEY, "stpid": station_id, "format": "json"}
     try:
@@ -206,8 +269,9 @@ def get_cta_train_data():
         if "traintracker-response" in data and "prd" in data["traintracker-response"]:
             for prd in data["traintracker-response"]["prd"]:
                 predictions.append({
-                    "lat": home_lat,
-                    "lng": home_lng,
+                    "stop_name": stop_name,
+                    "lat": stop_lat,
+                    "lng": stop_lon,
                     "line": prd.get("rt"),
                     "arrival": prd.get("prdctdn")
                 })
@@ -216,10 +280,10 @@ def get_cta_train_data():
             raise Exception("Unexpected train API response structure")
     except Exception as e:
         print("Error fetching train data:", e)
-        # Return simulated data using home coordinates
+        # Return simulated train data using the stop's coordinates
         return [
-            {"lat": home_lat, "lng": home_lng, "line": "Red", "arrival": "3 mins"},
-            {"lat": home_lat, "lng": home_lng, "line": "Blue", "arrival": "5 mins"}
+            {"stop_name": stop_name, "lat": stop_lat, "lng": stop_lon, "line": "Red", "arrival": "3 mins"},
+            {"stop_name": stop_name, "lat": stop_lat, "lng": stop_lon, "line": "Blue", "arrival": "5 mins"}
         ]
 
 @app.route("/api/realtime")
@@ -257,7 +321,7 @@ def search_routes():
             distance = haversine(lat, lng, avg_lat, avg_lng)
             if distance <= 1.5:
                 matching_routes.append({
-                    "name": route["short_name"],
+                    "line": route["short_name"],  # Changed key from "name" to "line"
                     "long_name": route["long_name"],
                     "lat": avg_lat,
                     "lng": avg_lng,
@@ -266,6 +330,7 @@ def search_routes():
                     "route_id": route["route_id"]
                 })
     return jsonify(matching_routes)
+
 
 # Endpoint: Get Next Stops for a Route based on User Location
 @app.route("/api/route_stops", methods=["GET"])
@@ -292,6 +357,14 @@ def route_stops():
             min_index = i
     stops_to_show = pts[min_index:min_index+4]
     return jsonify(stops_to_show)
+
+
+
+
+
+# ------------------------
+# PHONE
+# ------------------------
 
 @app.route("/api/send_otp", methods=["POST"])
 def send_otp():
@@ -327,6 +400,15 @@ def verify_otp():
         session["authenticated"] = True
         return jsonify({"status": "success"})
     return jsonify({"status": "error", "message": "Invalid OTP."})
+
+
+
+
+
+
+# ------------------------
+# USER MANAGEMENT
+# ------------------------
 
 # Endpoint: Set Home Location
 @app.route("/api/set_home", methods=["POST"])
@@ -399,6 +481,14 @@ def set_notification():
     db.session.commit()
     return jsonify({"status": "success", "message": "Notification settings updated."})
 
+
+
+
+
+# ------------------------
+# Web Routes
+# ------------------------
+
 @app.route("/")
 def index():
     if session.get("authenticated"):
@@ -410,7 +500,33 @@ def dashboard():
     user = get_current_user()
     if not user:
         return redirect(url_for("index"))
-    return render_template("dashboard.html", user=user, favorite_lines=user.get_favorites())
+
+    # Create a folium map centered on Chicago
+    m = folium.Map(location=[41.8781, -87.6298], zoom_start=12)
+
+    # Add each shape as a PolyLine and a midpoint marker
+    for shape_id, points in shapes.items():
+        coords = [[p["lat"], p["lon"]] for p in points]
+        folium.PolyLine(
+            coords,
+            color="blue",
+            weight=2.5,
+            opacity=1,
+            tooltip=f"Shape ID: {shape_id}"
+        ).add_to(m)
+        # Place a marker at the midpoint
+        mid_index = len(coords) // 2
+        folium.Marker(
+            location=coords[mid_index],
+            popup=f"Shape {shape_id} midpoint",
+            icon=folium.Icon(color='red', icon='info-sign')
+        ).add_to(m)
+
+    # Get the HTML representation of the map
+    map_html = m._repr_html_()
+
+    return render_template("dashboard.html", user=user, favorite_lines=user.get_favorites(), map_html=map_html)
+
 
 if __name__ == "__main__":
     with app.app_context():

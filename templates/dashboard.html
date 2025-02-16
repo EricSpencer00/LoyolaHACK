@@ -7,9 +7,14 @@
   <div class="card mb-4">
     <div class="card-header">Live Transit Map</div>
     <div class="card-body p-0">
-      <div id="map" style="height: 400px;"></div>
+      <!-- Insert the folium map HTML -->
+      <div id="map" style="height: 400px;">
+        {{ map_html | safe }}
+      </div>
     </div>
   </div>
+  <!-- Other dashboard content... -->
+</div>
 
   <!-- Realtime Bus Predictions Card -->
   <div class="card my-4">
@@ -162,15 +167,15 @@
 
 {% block scripts %}
 <script>
-// Map Initialization
-var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
-var defaultCenter = [41.8781, -87.6298];
-var mapCenter = (userHome && userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
-var map = L.map('map').setView(mapCenter, 13);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
-  maxZoom: 19
-}).addTo(map);
+// // Map Initialization
+// var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
+// var defaultCenter = [41.8781, -87.6298];
+// var mapCenter = (userHome && userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
+// var map = L.map('map').setView(mapCenter, 13);
+// L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+//   attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+//   maxZoom: 19
+// }).addTo(map);
 
 // Draggable Home Marker
 var homeMarker = L.marker(mapCenter, { draggable: true }).addTo(map);
@@ -187,11 +192,11 @@ homeMarker.on('dragend', function(e) {
   .catch(console.error);
 });
 
-// Realtime Transit Markers
-var busIcon = L.divIcon({ html: '🚌', className: 'emoji-icon', iconSize: [30, 30] });
-var trainIcon = L.divIcon({ html: '🚆', className: 'emoji-icon', iconSize: [30, 30] });
-var busLayer = L.layerGroup();
-var trainLayer = L.layerGroup();
+// // Realtime Transit Markers
+// var busIcon = L.divIcon({ html: '🚌', className: 'emoji-icon', iconSize: [30, 30] });
+// var trainIcon = L.divIcon({ html: '🚆', className: 'emoji-icon', iconSize: [30, 30] });
+// var busLayer = L.layerGroup();
+// var trainLayer = L.layerGroup();
 
 fetch('/api/realtime?type=bus')
   .then(response => response.json())
