@@ -5,7 +5,7 @@ import datetime
 import math
 import csv
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-from phone import send_sms_via_twilio
+from phone import send_verification_code, check_verification_code
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
@@ -28,7 +28,6 @@ OTPS = {}   # keyed by phone number
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(20), unique=True, nullable=False)
-    carrier = db.Column(db.String(20))
     home_lat = db.Column(db.Float)
     home_lng = db.Column(db.Float)
     favorite_lines = db.Column(db.Text)  # Stored as JSON list
@@ -122,54 +121,33 @@ def dashboard():
         return redirect(url_for("index"))
     return render_template("dashboard.html", user=user, favorite_lines=user.get_favorites())
 
-@app.route("/api/send_otp", methods=["POST"])
-def send_otp():
+@app.route("/api/send_verification", methods=["POST"])
+def send_verification():
     data = request.get_json()
     phone_number = data.get("phone_number")
-    carrier = data.get("carrier")  # Optional to keep if you still store it in the database
-
     if not phone_number:
         return jsonify({"status": "error", "message": "Phone number is required."})
     
-    otp = generate_otp()
-    OTPS[phone_number] = otp
-
     try:
-        # Send OTP via Twilio
-        send_sms_via_twilio(
-            to_number=phone_number, 
-            body=f"Your OTP is {otp}"
-        )
+        send_verification_code(phone_number)
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-@app.route("/api/verify_otp", methods=["POST"])
-def verify_otp():
+@app.route("/api/verify_code", methods=["POST"])
+def verify_code():
     data = request.get_json()
     phone_number = data.get("phone_number")
-    otp = data.get("otp")
-    carrier = data.get("carrier")
-
-    if OTPS.get(phone_number) == otp:
+    code = data.get("code")
+    if not phone_number or not code:
+        return jsonify({"status": "error", "message": "Phone number and code are required."})
+    
+    if check_verification_code(phone_number, code):
         session["authenticated"] = True
         session["phone_number"] = phone_number
-        user = User.query.filter_by(phone_number=phone_number).first()
-        if not user:
-            user = User(
-                phone_number=phone_number,
-                carrier=carrier,  # Optional if you still want to store it
-                home_lat=None,
-                home_lng=None,
-                favorite_lines=json.dumps([]),
-                notification_settings=json.dumps({"time": 10})
-            )
-            db.session.add(user)
-            db.session.commit()
         return jsonify({"status": "success"})
     else:
-        return jsonify({"status": "error", "message": "Incorrect OTP."})
-    
+        return jsonify({"status": "error", "message": "Invalid verification code."})    
 @app.route("/api/search_routes")
 def search_routes():
     lat = float(request.args.get("lat", 41.8781))
@@ -246,11 +224,8 @@ def set_notification():
     if time_val:
         settings["time"] = time_val
     phone = data.get("phone_number")
-    carrier = data.get("carrier")
     if phone:
         user.phone_number = phone
-    if carrier:
-        user.carrier = carrier
     user.set_notification_settings(settings)
     db.session.commit()
     return jsonify({"status": "success", "message": "Notification settings updated."})

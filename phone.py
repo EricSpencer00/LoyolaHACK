@@ -1,21 +1,30 @@
-# phone.py
-import os
 from twilio.rest import Client
+import os
 
-def send_sms_via_twilio(to_number, body):
-    """Send SMS using Twilio."""
-    # Make sure these environment variables are set in your .env or hosting environment
-    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
-    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-    from_number = os.getenv("TWILIO_PHONE_NUMBER")
+# Initialize Twilio client
+account_sid = os.getenv('TWILIO_ACCOUNT_SID')
+auth_token = os.getenv('TWILIO_AUTH_TOKEN')
+verify_service_sid = os.getenv('TWILIO_VERIFY_SERVICE_SID')
+client = Client(account_sid, auth_token)
 
-    if not (account_sid and auth_token and from_number):
-        raise ValueError("Twilio environment variables are not set properly.")
+def send_verification_code(phone_number):
+    try:
+        verification = client.verify.services(verify_service_sid).verifications.create(
+            to=phone_number,
+            channel='sms'  # Use 'call' for voice call verification
+        )
+        print(f"Sent verification code to {phone_number}")
+    except Exception as e:
+        print(f"Failed to send verification code: {e}")
+        raise
 
-    client = Client(account_sid, auth_token)
-    message = client.messages.create(
-        to=to_number,
-        from_=from_number,
-        body=body
-    )
-    return message.sid
+def check_verification_code(phone_number, code):
+    try:
+        verification_check = client.verify.services(verify_service_sid).verification_checks.create(
+            to=phone_number,
+            code=code
+        )
+        return verification_check.status == 'approved'
+    except Exception as e:
+        print(f"Failed to verify code: {e}")
+        return False
