@@ -167,16 +167,115 @@
 
 {% block scripts %}
 <script>
-// // Map Initialization
-// var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
-// var defaultCenter = [41.8781, -87.6298];
-// var mapCenter = (userHome && userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
-// var map = L.map('map').setView(mapCenter, 13);
-// L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-//   attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
-//   maxZoom: 19
-// }).addTo(map);
-
+  // Initialize Leaflet map
+  var defaultCenter = [41.8781, -87.6298];
+  var map = L.map('map').setView(defaultCenter, 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+    maxZoom: 19
+  }).addTo(map);
+  
+  // Define layer groups (but start empty)
+  var lineLayer, stopsLayer;
+  
+  // Function to load and add the route line
+  function loadRouteLine() {
+    fetch('/api/line')
+      .then(res => res.json())
+      .then(geojson => {
+        // Remove existing line layer if present
+        if (lineLayer) {
+          map.removeLayer(lineLayer);
+        }
+        lineLayer = L.geoJSON(geojson, {
+          style: {
+            color: "#3388ff",
+            weight: 5,
+            opacity: 0.8
+          }
+        });
+        // Only add if zoomed in enough
+        if (map.getZoom() >= 15) {
+          lineLayer.addTo(map);
+        }
+      });
+  }
+  
+  // Function to load and add stops markers
+  function loadStopsMarkers() {
+    fetch('/api/stops')
+      .then(res => res.json())
+      .then(geojson => {
+        if (stopsLayer) {
+          map.removeLayer(stopsLayer);
+        }
+        stopsLayer = L.geoJSON(geojson, {
+          pointToLayer: function(feature, latlng) {
+            return L.marker(latlng, {
+              icon: L.divIcon({ html: '📍', className: 'stop-icon', iconSize: [20, 20] })
+            }).bindPopup("<strong>" + feature.properties.stop_name + "</strong>");
+          }
+        });
+        if (map.getZoom() >= 15) {
+          stopsLayer.addTo(map);
+        }
+      });
+  }
+  
+  // Load layers initially
+  loadRouteLine();
+  loadStopsMarkers();
+  
+  // Update layers on zoom end: only show when zoom level is 15 or higher
+  map.on('zoomend', function() {
+    var currentZoom = map.getZoom();
+    if (currentZoom >= 15) {
+      if (lineLayer && !map.hasLayer(lineLayer)) {
+        lineLayer.addTo(map);
+      }
+      if (stopsLayer && !map.hasLayer(stopsLayer)) {
+        stopsLayer.addTo(map);
+      }
+    } else {
+      if (lineLayer && map.hasLayer(lineLayer)) {
+        map.removeLayer(lineLayer);
+      }
+      if (stopsLayer && map.hasLayer(stopsLayer)) {
+        map.removeLayer(stopsLayer);
+      }
+    }
+  });
+  
+  // Example: Realtime Predictions (bus & train)
+  Promise.all([
+    fetch('/api/realtime?type=bus').then(res => res.json()),
+    fetch('/api/realtime?type=train').then(res => res.json())
+  ]).then(([busData, trainData]) => {
+    const resultsDiv = document.getElementById('realtimeResults');
+    let html = '<h5>Buses:</h5><ul>';
+    if (busData.error) {
+      html += `<li>Error: ${busData.error}</li>`;
+    } else if (busData.length > 0) {
+      busData.forEach(item => {
+        html += `<li>Bus ${item.line} - Arrival in ${item.arrival} mins</li>`;
+      });
+    } else {
+      html += `<li>No bus predictions available.</li>`;
+    }
+    html += '</ul><h5>Trains:</h5><ul>';
+    if (trainData.error) {
+      html += `<li>Error: ${trainData.error}</li>`;
+    } else if (trainData.length > 0) {
+      trainData.forEach(item => {
+        html += `<li>Train ${item.line} at ${item.stop_name} - Arrival: ${item.arrival}</li>`;
+      });
+    } else {
+      html += `<li>No train predictions available.</li>`;
+    }
+    html += '</ul>';
+    resultsDiv.innerHTML = html;
+  }).catch(err => console.error('Error fetching realtime data:', err));
+  
 // Draggable Home Marker
 var homeMarker = L.marker(mapCenter, { draggable: true }).addTo(map);
 homeMarker.bindPopup("Drag me to set your home location.").openPopup();
@@ -193,10 +292,10 @@ homeMarker.on('dragend', function(e) {
 });
 
 // // Realtime Transit Markers
-// var busIcon = L.divIcon({ html: '🚌', className: 'emoji-icon', iconSize: [30, 30] });
-// var trainIcon = L.divIcon({ html: '🚆', className: 'emoji-icon', iconSize: [30, 30] });
-// var busLayer = L.layerGroup();
-// var trainLayer = L.layerGroup();
+var busIcon = L.divIcon({ html: '🚌', className: 'emoji-icon', iconSize: [30, 30] });
+var trainIcon = L.divIcon({ html: '🚆', className: 'emoji-icon', iconSize: [30, 30] });
+var busLayer = L.layerGroup();
+var trainLayer = L.layerGroup();
 
 fetch('/api/realtime?type=bus')
   .then(response => response.json())
@@ -290,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function() {
   searchInput.addEventListener('input', function() {
     const query = this.value.toLowerCase();
     const filtered = allRoutes.filter(route => 
-      route.short_name.toLowerCase().includes(query) ||
+      route.line.toLowerCase().includes(query) ||
       route.long_name.toLowerCase().includes(query)
     );
     displayRoutes(filtered);
@@ -301,7 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
     routes.forEach(route => {
       const li = document.createElement('li');
       li.className = 'list-group-item d-flex justify-content-between align-items-center';
-      li.textContent = `${route.short_name} - ${route.long_name}`;
+      li.textContent = `${route.line} - ${route.long_name}`;
       const trackBtn = document.createElement('button');
       trackBtn.className = 'btn btn-sm btn-primary';
       trackBtn.textContent = 'Track';
