@@ -3,20 +3,19 @@
 
 {% block content %}
 <div class="container my-4">
-  <!-- Live Transit Map (the map is featured at the top) -->
+  <!-- Live Transit Map Card -->
   <div class="card mb-4">
-    <div class="card-header">
-      Live Transit Map
-    </div>
+    <div class="card-header">Live Transit Map</div>
     <div class="card-body p-0">
       <div id="map" style="height: 400px;"></div>
     </div>
   </div>
 
+  <!-- Realtime Bus Predictions Card -->
   <div class="card my-4">
     <div class="card-header">Realtime Bus Predictions</div>
     <div class="card-body" id="realtimeResults">
-      <!-- Results will be injected here -->
+      <!-- Realtime predictions will be injected here -->
     </div>
   </div>
 
@@ -24,13 +23,9 @@
     <!-- User Info & Home Location Card -->
     <div class="col-md-6 mb-4">
       <div class="card h-100">
-        <div class="card-header">
-          My Transit Dashboard
-        </div>
+        <div class="card-header">My Transit Dashboard</div>
         <div class="card-body">
-          <h4 class="card-title">
-            Welcome, {{ user.phone_number }}
-          </h4>
+          <h4 class="card-title">Welcome, {{ user.phone_number }}</h4>
           <p class="card-text">
             Home Location:
             {% if user.home_lat and user.home_lng %}
@@ -48,9 +43,7 @@
     <!-- Favorite Lines Card -->
     <div class="col-md-6 mb-4">
       <div class="card h-100">
-        <div class="card-header">
-          Favorite Lines
-        </div>
+        <div class="card-header">Favorite Lines</div>
         <div class="card-body">
           <ul class="list-group">
             {% if favorite_lines %}
@@ -76,16 +69,21 @@
 
   <!-- Notification Settings Card -->
   <div class="card mb-4">
-    <div class="card-header">
-      Notification Settings
-    </div>
+    <div class="card-header">Notification Settings</div>
     <div class="card-body">
-      <p class="card-text">
-        Set alerts for your favorite lines.
-      </p>
+      <p class="card-text">Set alerts for your favorite lines.</p>
       <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#notificationModal">
         Manage Notifications
       </button>
+    </div>
+  </div>
+
+  <!-- Search CTA Routes Card -->
+  <div class="card my-4">
+    <div class="card-header">Search CTA Routes</div>
+    <div class="card-body">
+      <input type="text" id="routeSearchInput" class="form-control" placeholder="Search for a route...">
+      <ul id="routeSearchResults" class="list-group mt-3"></ul>
     </div>
   </div>
 </div>
@@ -139,13 +137,6 @@
   </div>
 </div>
 
-<div class="mb-3">
-  <label for="routeSearch" class="form-label">Search for nearby routes</label>
-  <input type="text" id="routeSearch" class="form-control" placeholder="Enter a transit line or keyword">
-</div>
-<button id="searchRoutes" class="btn btn-info mb-3">Search Routes</button>
-<ul id="searchResults" class="list-group"></ul>
-
 <!-- Notification Settings Modal -->
 <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -170,46 +161,19 @@
 {% endblock %}
 
 {% block scripts %}
+{% block scripts %}
 <script>
-  // Fetch realtime bus data and output to the div
-  fetch('/api/realtime?type=bus')
-    .then(response => response.json())
-    .then(data => {
-      const resultsDiv = document.getElementById('realtimeResults');
-      // Clear any existing content
-      resultsDiv.innerHTML = '';
-      if (data.error) {
-        resultsDiv.textContent = 'Error: ' + data.error;
-      } else if (data.length > 0) {
-        // Build a simple list of predictions
-        let html = '<ul>';
-        data.forEach(item => {
-          html += `<li>Line: ${item.line} - Arrival in ${item.arrival} minutes</li>`;
-        });
-        html += '</ul>';
-        resultsDiv.innerHTML = html;
-      } else {
-        resultsDiv.textContent = 'No realtime data available.';
-      }
-    })
-    .catch(error => {
-      console.error('Error fetching realtime data:', error);
-    });
-</script>
-<script>
-// Initialize user home location and map center
+// Map Initialization
 var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
 var defaultCenter = [41.8781, -87.6298];
 var mapCenter = (userHome && userHome.lat && userHome.lng) ? [userHome.lat, userHome.lng] : defaultCenter;
-
-// Initialize the map with CartoDB Positron tiles
 var map = L.map('map').setView(mapCenter, 13);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
   maxZoom: 19
 }).addTo(map);
 
-// Create a draggable home marker
+// Draggable Home Marker
 var homeMarker = L.marker(mapCenter, { draggable: true }).addTo(map);
 homeMarker.bindPopup("Drag me to set your home location.").openPopup();
 homeMarker.on('dragend', function(e) {
@@ -224,74 +188,145 @@ homeMarker.on('dragend', function(e) {
   .catch(console.error);
 });
 
-// Create emoji markers for transit vehicles
+// Realtime Transit Markers
 var busIcon = L.divIcon({ html: '🚌', className: 'emoji-icon', iconSize: [30, 30] });
 var trainIcon = L.divIcon({ html: '🚆', className: 'emoji-icon', iconSize: [30, 30] });
-
-// Layer groups for transit markers
 var busLayer = L.layerGroup();
 var trainLayer = L.layerGroup();
 
-// Fetch and display bus data
 fetch('/api/realtime?type=bus')
   .then(response => response.json())
   .then(data => {
     data.forEach(function(item) {
       L.marker([item.lat, item.lng], { icon: busIcon })
-        .bindPopup("<strong>Bus " + item.line + "</strong>")
+        .bindPopup("<strong>Bus " + item.line + "</strong><br>Arrival: " + item.arrival + " mins")
         .addTo(busLayer);
     });
+    busLayer.addTo(map);
   });
 
-// Fetch and display train data
 fetch('/api/realtime?type=train')
   .then(response => response.json())
   .then(data => {
     data.forEach(function(item) {
       L.marker([item.lat, item.lng], { icon: trainIcon })
-        .bindPopup("<strong>Train " + item.line + "</strong>")
+        .bindPopup("<strong>Train " + item.line + "</strong><br>Arrival: " + item.arrival)
         .addTo(trainLayer);
     });
+    trainLayer.addTo(map);
   });
 
-// Add layers control and default layers to map
 var overlays = { "Buses": busLayer, "Trains": trainLayer };
 L.control.layers(null, overlays).addTo(map);
-busLayer.addTo(map);
-trainLayer.addTo(map);
 
-// Draw a sample transit route (polyline) with custom styling
-var sampleRoute = [
-  [41.881, -87.627],
-  [41.882, -87.630],
-  [41.883, -87.635],
-  [41.885, -87.640]
-];
-var routeStyle = { color: '#FF5733', weight: 4, dashArray: '5, 10' };
-L.polyline(sampleRoute, routeStyle).addTo(map);
+// Draw GTFS Route Shapes with Route Info
+fetch('/api/gtfs_routes')
+  .then(response => response.json())
+  .then(geojson => {
+    L.geoJSON(geojson, {
+      style: function(feature) {
+        var route = feature.properties.route;
+        var color = route && route.color ? '#' + route.color : 'black';
+        return { color: color, weight: 4 };
+      },
+      onEachFeature: function(feature, layer) {
+        var route = feature.properties.route;
+        if (route && route.short_name) {
+          layer.bindPopup("Route: " + route.short_name + " - " + route.long_name);
+        }
+      }
+    }).addTo(map);
+  })
+  .catch(console.error);
 
-// Function to update GTFS shapes based on viewport
-function updateShapes() {
-  var bounds = map.getBounds();
-  var sw = bounds.getSouthWest();
-  var ne = bounds.getNorthEast();
+// Display combined realtime predictions in the Realtime Predictions Card
+Promise.all([
+  fetch('/api/realtime?type=bus').then(res => res.json()),
+  fetch('/api/realtime?type=train').then(res => res.json())
+]).then(([busData, trainData]) => {
+  const resultsDiv = document.getElementById('realtimeResults');
+  resultsDiv.innerHTML = '';
+  let html = '<h5>Buses:</h5><ul>';
+  if (busData.error) {
+    html += `<li>Error: ${busData.error}</li>`;
+  } else if (busData.length > 0) {
+    busData.forEach(item => {
+      html += `<li>Bus ${item.line} - Arrival in ${item.arrival} mins</li>`;
+    });
+  } else {
+    html += `<li>No bus predictions available.</li>`;
+  }
+  html += '</ul><h5>Trains:</h5><ul>';
+  if (trainData.error) {
+    html += `<li>Error: ${trainData.error}</li>`;
+  } else if (trainData.length > 0) {
+    trainData.forEach(item => {
+      html += `<li>Train ${item.line} - Arrival: ${item.arrival}</li>`;
+    });
+  } else {
+    html += `<li>No train predictions available.</li>`;
+  }
+  html += '</ul>';
+  resultsDiv.innerHTML = html;
+}).catch(err => console.error('Error fetching realtime data:', err));
 
-  fetch(`/api/gtfs_shapes?sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`)
-    .then(response => response.json())
-    .then(data => {
-      // For production, clear previous shape layers before adding new ones.
-      Object.keys(data).forEach(function(shapeId) {
-        var points = data[shapeId].map(pt => [pt.lat, pt.lon]);
-        L.polyline(points, { color: 'black', weight: 4, opacity: 1 }).addTo(map);
-      });
-    })
-    .catch(console.error);
-}
+// Search CTA Routes Functionality
+document.addEventListener('DOMContentLoaded', function() {
+  let allRoutes = [];
+  const searchInput = document.getElementById('routeSearchInput');
+  const resultsList = document.getElementById('routeSearchResults');
+  
+  fetch('/api/routes')
+    .then(res => res.json())
+    .then(routes => {
+      allRoutes = routes;
+      displayRoutes(allRoutes);
+    });
+  
+  searchInput.addEventListener('input', function() {
+    const query = this.value.toLowerCase();
+    const filtered = allRoutes.filter(route => 
+      route.short_name.toLowerCase().includes(query) ||
+      route.long_name.toLowerCase().includes(query)
+    );
+    displayRoutes(filtered);
+  });
+  
+  function displayRoutes(routes) {
+    resultsList.innerHTML = '';
+    routes.forEach(route => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+      li.textContent = `${route.short_name} - ${route.long_name}`;
+      const trackBtn = document.createElement('button');
+      trackBtn.className = 'btn btn-sm btn-primary';
+      trackBtn.textContent = 'Track';
+      trackBtn.onclick = () => {
+        const userLat = {{ user.home_lat or 41.8781 }};
+        const userLng = {{ user.home_lng or -87.6298 }};
+        fetch(`/api/route_stops?route_id=${route.route_id}&lat=${userLat}&lng=${userLng}`)
+          .then(res => res.json())
+          .then(stops => {
+            if(stops.error) {
+              alert(stops.error);
+            } else {
+              let stopsHtml = `<h5>Next Stops for ${route.short_name}:</h5><ul>`;
+              stops.forEach(stop => {
+                stopsHtml += `<li>Lat: ${stop.lat.toFixed(4)}, Lon: ${stop.lon.toFixed(4)}</li>`;
+              });
+              stopsHtml += '</ul>';
+              alert(stopsHtml);
+            }
+          })
+          .catch(err => console.error(err));
+      };
+      li.appendChild(trackBtn);
+      resultsList.appendChild(li);
+    });
+  }
+});
 
-// Update shapes on map moveend
-map.on('moveend', updateShapes);
-
-// Handle form submissions and search functionality
+// Form submission handlers for home, favorite line, and notifications
 document.getElementById('homeForm').addEventListener('submit', function(e) {
   e.preventDefault();
   var lat = document.getElementById('homeLat').value;
@@ -354,41 +389,5 @@ function removeFavorite(line) {
   })
   .catch(console.error);
 }
-
-document.getElementById('searchRoutes').addEventListener('click', function() {
-  var query = document.getElementById('routeSearch').value;
-  var coords = (userHome && userHome.lat && userHome.lng) ? { lat: userHome.lat, lng: userHome.lng } : { lat: defaultCenter[0], lng: defaultCenter[1] };
-  fetch(`/api/search_routes?lat=${coords.lat}&lng=${coords.lng}&q=${query}`)
-    .then(response => response.json())
-    .then(function(data) {
-      var resultsList = document.getElementById('searchResults');
-      resultsList.innerHTML = '';
-      if (data.length) {
-        data.forEach(function(route) {
-          var li = document.createElement('li');
-          li.className = 'list-group-item';
-          li.textContent = route.name + ' (' + route.distance.toFixed(2) + ' miles)';
-          var addBtn = document.createElement('button');
-          addBtn.className = 'btn btn-sm btn-success float-end';
-          addBtn.textContent = 'Add';
-          addBtn.onclick = function() {
-            fetch('/api/add_favorite', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ line: route.name })
-            })
-            .then(resp => resp.json())
-            .then(function(res) { alert(res.message); location.reload(); })
-            .catch(console.error);
-          };
-          li.appendChild(addBtn);
-          resultsList.appendChild(li);
-        });
-      } else {
-        resultsList.innerHTML = '<li class="list-group-item">No routes found within 1.5 miles.</li>';
-      }
-    })
-    .catch(console.error);
-});
 </script>
 {% endblock %}

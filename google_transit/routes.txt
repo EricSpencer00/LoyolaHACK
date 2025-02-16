@@ -122,11 +122,11 @@ X49,"X49","Western Express",3,http://www.transitchicago.com/bus/X49/,b71234,ffff
 192,"192","University of Chicago Hospitals Express",3,http://www.transitchicago.com/bus/192/,565a5c,ffffff
 201,"201","Central/Ridge",3,http://www.transitchicago.com/bus/201/,565a5c,ffffff
 206,"206","Evanston Circulator",3,http://www.transitchicago.com/bus/206/,565a5c,ffffff
-Red,"","Red Line",1,http://www.transitchicago.com/redline/,C60C30,FFFFFF
-P,"","Purple Line",1,http://www.transitchicago.com/purpleline/,522398,FFFFFF
-Y,"","Yellow Line",1,http://www.transitchicago.com/yellowline/,F9E300,000000
-Blue,"","Blue Line",1,http://www.transitchicago.com/blueline/,00A1DE,FFFFFF
-Pink,"","Pink Line",1,http://www.transitchicago.com/pinkline/,E27EA6,FFFFFF
-G,"","Green Line",1,http://www.transitchicago.com/greenline/,009B3A,FFFFFF
-Org,"","Orange Line",1,http://www.transitchicago.com/orangeline/,F9461C,FFFFFF
-Brn,"","Brown Line",1,http://www.transitchicago.com/brownline/,62361B,FFFFFF
+Red,"Red Line","Red Line",1,http://www.transitchicago.com/redline/,C60C30,FFFFFF
+P,"Purple Line","Purple Line",1,http://www.transitchicago.com/purpleline/,522398,FFFFFF
+Y,"Yellow","Yellow Line",1,http://www.transitchicago.com/yellowline/,F9E300,000000
+Blue,"Blue","Blue Line",1,http://www.transitchicago.com/blueline/,00A1DE,FFFFFF
+Pink,"Pink","Pink Line",1,http://www.transitchicago.com/pinkline/,E27EA6,FFFFFF
+G,"Green","Green Line",1,http://www.transitchicago.com/greenline/,009B3A,FFFFFF
+Org,"Orange","Orange Line",1,http://www.transitchicago.com/orangeline/,F9461C,FFFFFF
+Brn,"Brown","Brown Line",1,http://www.transitchicago.com/brownline/,62361B,FFFFFF
