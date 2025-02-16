@@ -13,6 +13,13 @@
     </div>
   </div>
 
+  <div class="card my-4">
+    <div class="card-header">Realtime Bus Predictions</div>
+    <div class="card-body" id="realtimeResults">
+      <!-- Results will be injected here -->
+    </div>
+  </div>
+
   <div class="row">
     <!-- User Info & Home Location Card -->
     <div class="col-md-6 mb-4">
@@ -163,6 +170,32 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+  // Fetch realtime bus data and output to the div
+  fetch('/api/realtime?type=bus')
+    .then(response => response.json())
+    .then(data => {
+      const resultsDiv = document.getElementById('realtimeResults');
+      // Clear any existing content
+      resultsDiv.innerHTML = '';
+      if (data.error) {
+        resultsDiv.textContent = 'Error: ' + data.error;
+      } else if (data.length > 0) {
+        // Build a simple list of predictions
+        let html = '<ul>';
+        data.forEach(item => {
+          html += `<li>Line: ${item.line} - Arrival in ${item.arrival} minutes</li>`;
+        });
+        html += '</ul>';
+        resultsDiv.innerHTML = html;
+      } else {
+        resultsDiv.textContent = 'No realtime data available.';
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching realtime data:', error);
+    });
+</script>
 <script>
 // Initialize user home location and map center
 var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
