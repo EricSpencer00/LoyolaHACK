@@ -246,7 +246,7 @@ function updateShapes() {
   fetch(`/api/gtfs_shapes?sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`)
     .then(response => response.json())
     .then(data => {
-      // For production, store and remove previous shape layers before adding new ones.
+      // For production, clear previous shape layers before adding new ones.
       Object.keys(data).forEach(function(shapeId) {
         var points = data[shapeId].map(pt => [pt.lat, pt.lon]);
         L.polyline(points, { color: 'black', weight: 4, opacity: 1 }).addTo(map);
