@@ -161,7 +161,6 @@
 {% endblock %}
 
 {% block scripts %}
-{% block scripts %}
 <script>
 // Map Initialization
 var userHome = {{ {'lat': user.home_lat, 'lng': user.home_lng} | tojson }};
