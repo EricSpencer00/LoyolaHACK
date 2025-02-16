@@ -247,6 +247,21 @@
     }
   });
 
+  // draggable home marker
+  var homeMarker = L.marker(defaultCenter, { draggable: true }).addTo(map);
+  homeMarker.bindPopup("Drag me to set your home location.").openPopup();
+  homeMarker.on('dragend', function(e) {
+    var newPos = e.target.getLatLng();
+    fetch('/api/set_home', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: newPos.lat, lng: newPos.lng })
+    })
+    .then(response => response.json())
+    .then(data => { alert(data.message); })
+    .catch(console.error);
+  });
+
   // Assume the backend passes the user's home coordinates in the template
   var userHome = {{ {'lat': user.home_lat or 41.8781, 'lng': user.home_lng or -87.6298} | tojson }};
   var mapCenter = [userHome.lat, userHome.lng];
