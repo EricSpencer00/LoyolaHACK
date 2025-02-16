@@ -145,7 +145,6 @@ def get_stops():
 # (Other API Endpoints remain mostly the same)
 # ------------------------
 
-# Realtime Bus Predictions (unchanged)
 def get_cta_bus_data():
     CTA_API_KEY = os.getenv("CTA_API_KEY")
     if not CTA_API_KEY:

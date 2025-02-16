@@ -167,6 +167,7 @@
 
 {% block scripts %}
 <script>
+
   // Initialize Leaflet map
   var defaultCenter = [41.8781, -87.6298];
   var map = L.map('map').setView(defaultCenter, 13);
@@ -245,6 +246,17 @@
       }
     }
   });
+
+  // Assume the backend passes the user's home coordinates in the template
+  var userHome = {{ {'lat': user.home_lat or 41.8781, 'lng': user.home_lng or -87.6298} | tojson }};
+  var mapCenter = [userHome.lat, userHome.lng];
+  var map = L.map('map').setView(mapCenter, 15); // zoomed in on user's location if set
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+    maxZoom: 19
+  }).addTo(map);
+
   
   // Example: Realtime Predictions (bus & train)
   Promise.all([
@@ -275,7 +287,7 @@
     html += '</ul>';
     resultsDiv.innerHTML = html;
   }).catch(err => console.error('Error fetching realtime data:', err));
-  
+
 // Draggable Home Marker
 var homeMarker = L.marker(mapCenter, { draggable: true }).addTo(map);
 homeMarker.bindPopup("Drag me to set your home location.").openPopup();
