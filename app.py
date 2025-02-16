@@ -218,6 +218,7 @@ def get_cta_bus_data():
     params = {"key": CTA_API_KEY, "stpid": stop_id, "format": "json"}
     r = requests.get(url, params=params)
     data = r.json()
+    print("CTA Bus API Response:", data)
 
     # Use user's home coordinates if available; otherwise, default values.
     user = get_current_user()
@@ -261,6 +262,7 @@ def get_cta_train_data():
     try:
         r = requests.get(url, params=params)
         data = r.json()
+        print("CTA Train API Response:", data)
         predictions = []
         if "traintracker-response" in data and "prd" in data["traintracker-response"]:
             for prd in data["traintracker-response"]["prd"]:
