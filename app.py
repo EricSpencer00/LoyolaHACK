@@ -15,10 +15,10 @@ load_dotenv(override=True)
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Configure mail settings (if still used for OTPs)
+# Configure mail settings (for OTPs)
 app.config.update({
     "MAIL_SERVER": "smtp.gmail.com",
-    "MAIL_PORT": 465,
+    "MAIL_PORT": 465,  # SSL Port
     "MAIL_USE_TLS": False,
     "MAIL_USE_SSL": True,
     "MAIL_USERNAME": os.getenv('MAIL_USERNAME'),
@@ -26,13 +26,13 @@ app.config.update({
     "MAIL_DEFAULT_SENDER": os.getenv('MAIL_DEFAULT_SENDER')
 })
 
-# Configure SQLite database for demonstration
+# Configure SQLite database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cta_tracker.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # In-memory storage for OTPs.
-OTPS = {}
+OTPS = {}  # keyed by phone number
 
 # ------------------------
 # Database Model
@@ -43,8 +43,8 @@ class User(db.Model):
     carrier = db.Column(db.String(20))
     home_lat = db.Column(db.Float)
     home_lng = db.Column(db.Float)
-    favorite_lines = db.Column(db.Text)  # Stored as JSON list
-    notification_settings = db.Column(db.Text)  # Stored as JSON object
+    favorite_lines = db.Column(db.Text)  # JSON list
+    notification_settings = db.Column(db.Text)  # JSON object
 
     def get_favorites(self):
         return json.loads(self.favorite_lines) if self.favorite_lines else []
@@ -73,7 +73,7 @@ def get_current_user():
     return None
 
 def haversine(lat1, lng1, lat2, lng2):
-    R = 3958.8  # miles
+    R = 3958.8  # Radius in miles
     dLat = math.radians(lat2 - lat1)
     dLng = math.radians(lng2 - lng1)
     a = math.sin(dLat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLng/2)**2
@@ -83,7 +83,7 @@ def haversine(lat1, lng1, lat2, lng2):
 # ------------------------
 # Load GTFS Shapes Data
 # ------------------------
-shapes = {}
+shapes = {}  # shape_id -> list of points
 with open('./google_transit/shapes.txt', newline='') as f:
     reader = csv.DictReader(f)
     for row in reader:
@@ -117,10 +117,8 @@ with open('google_transit/routes.txt', newline='') as f:
             "text_color": row["route_text_color"]
         })
 
-# For demonstration, simple mapping: route_id "1" -> shape_id "66800095"
-route_to_shape = {
-    "1": "66800095"
-}
+# For demonstration, a simple mapping from route to shape.
+route_to_shape = {"1": "66800095"}
 
 def build_route_by_shape():
     mapping = {}
@@ -139,10 +137,7 @@ def gtfs_routes():
         coordinates = [[p["lon"], p["lat"]] for p in points]
         feature = {
             "type": "Feature",
-            "geometry": {
-                "type": "LineString",
-                "coordinates": coordinates
-            },
+            "geometry": {"type": "LineString", "coordinates": coordinates},
             "properties": {
                 "shape_id": shape_id,
                 "route": route_by_shape.get(shape_id, {})
@@ -155,12 +150,11 @@ def gtfs_routes():
 # ------------------------
 # Realtime Predictions Endpoints
 # ------------------------
-
 def get_cta_bus_data():
     CTA_API_KEY = os.getenv("CTA_API_KEY")
     if not CTA_API_KEY:
         raise Exception("CTA_API_KEY not set")
-    stop_id = request.args.get("stop_id", "4002")  # Default stop id
+    stop_id = request.args.get("stop_id", "4002")
     url = "http://www.ctabustracker.com/bustime/api/v2/getpredictions"
     params = {"key": CTA_API_KEY, "stpid": stop_id, "format": "json"}
     r = requests.get(url, params=params)
@@ -169,7 +163,7 @@ def get_cta_bus_data():
     if "bustime-response" in data and "prd" in data["bustime-response"]:
         for prd in data["bustime-response"]["prd"]:
             predictions.append({
-                "lat": 41.880,      # Use actual stop coordinates if available
+                "lat": 41.880,  # Replace with actual stop coordinates if available
                 "lng": -87.630,
                 "line": prd.get("rt"),
                 "arrival": prd.get("prdctdn")
@@ -180,9 +174,7 @@ def get_cta_train_data():
     CTA_TRAIN_API_KEY = os.getenv("CTA_TRAIN_API_KEY")
     if not CTA_TRAIN_API_KEY:
         raise Exception("CTA_TRAIN_API_KEY not set")
-    # Default station id for demonstration; replace with real station IDs as needed.
     station_id = request.args.get("station_id", "301")
-    # Hypothetical CTA Train Tracker API endpoint (adjust as per actual docs)
     url = "http://www.transitchicago.com/traintracker/api/1.0/getpredictions"
     params = {"key": CTA_TRAIN_API_KEY, "stpid": station_id, "format": "json"}
     r = requests.get(url, params=params)
@@ -191,7 +183,7 @@ def get_cta_train_data():
     if "traintracker-response" in data and "prd" in data["traintracker-response"]:
         for prd in data["traintracker-response"]["prd"]:
             predictions.append({
-                "lat": 41.880,      # Dummy values; ideally, use actual station coordinates
+                "lat": 41.880,  # Dummy coordinate; replace with real coordinates
                 "lng": -87.630,
                 "line": prd.get("rt"),
                 "arrival": prd.get("prdctdn")
@@ -203,22 +195,33 @@ def realtime():
     transit_type = request.args.get("type")
     if transit_type == "bus":
         try:
-            bus_data = get_cta_bus_data()
-            return jsonify(bus_data)
+            return jsonify(get_cta_bus_data())
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     elif transit_type == "train":
         try:
-            train_data = get_cta_train_data()
-            return jsonify(train_data)
+            return jsonify(get_cta_train_data())
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "Invalid transit type"}), 400
 
 # ------------------------
-# Other Endpoints (unchanged)
+# Other Endpoints
 # ------------------------
+@app.route("/")
+def index():
+    if session.get("authenticated"):
+        return redirect(url_for("dashboard"))
+    return render_template("signin.html")
+
+@app.route("/dashboard")
+def dashboard():
+    user = get_current_user()
+    if not user:
+        return redirect(url_for("index"))
+    return render_template("dashboard.html", user=user, favorite_lines=user.get_favorites())
+
 @app.route("/api/set_home", methods=["POST"])
 def set_home():
     user = get_current_user()
